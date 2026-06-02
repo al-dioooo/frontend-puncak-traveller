@@ -468,6 +468,34 @@ svg {
   flex: 0 0 auto;
 }
 
+.landing-empty-state {
+  display: grid;
+  gap: 8px;
+  min-height: 180px;
+  place-items: center;
+  padding: 34px;
+  border: 1px dashed rgb(15 23 42 / 0.18);
+  border-radius: var(--pt-radius-lg);
+  background:
+    linear-gradient(135deg, rgb(255 255 255 / 0.88), rgb(255 255 255 / 0.56)),
+    var(--pt-cream-warm);
+  color: var(--pt-gray);
+  text-align: center;
+}
+
+.landing-empty-state p {
+  color: var(--pt-navy);
+  font-family: var(--font-display), var(--font-body), sans-serif;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.landing-empty-state span {
+  max-width: 620px;
+  font-weight: 700;
+}
+
 .hero-section {
   position: relative;
   min-height: min(880px, 92svh);

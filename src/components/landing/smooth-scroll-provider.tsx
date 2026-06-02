@@ -53,15 +53,28 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
         },
         (context) => {
           const { isDesktop, reduceMotion } = context.conditions ?? {};
+          const headerTargets = root.querySelectorAll(".js-header");
+          const heroTargets = root.querySelectorAll(".js-hero-item");
+          const revealTargets = root.querySelectorAll(".js-reveal");
+          const cardTargets = root.querySelectorAll(".js-card");
+          const liveStatTargets = root.querySelectorAll(".js-live-stat");
+          const setTargets = (
+            targets: NodeListOf<Element> | Element[],
+            vars: gsap.TweenVars,
+          ) => {
+            if (targets.length > 0) {
+              gsap.set(targets, vars);
+            }
+          };
 
           if (reduceMotion) {
-            gsap.set(
+            setTargets(
               [
-                ".js-header",
-                ".js-hero-item",
-                ".js-reveal",
-                ".js-card",
-                ".js-live-stat",
+                ...headerTargets,
+                ...heroTargets,
+                ...revealTargets,
+                ...cardTargets,
+                ...liveStatTargets,
               ],
               {
                 autoAlpha: 1,
@@ -75,17 +88,17 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
 
           gsap.defaults({ duration: 0.82, ease: "power3.out" });
 
-          gsap.set(".js-header", { autoAlpha: 0, y: -18 });
-          gsap.set(".js-hero-item", { autoAlpha: 0, y: 42 });
-          gsap.set(".js-reveal", { autoAlpha: 0, y: 42 });
-          gsap.set(".js-card", { autoAlpha: 0, y: 44, scale: 0.985 });
-          gsap.set(".js-live-stat", { autoAlpha: 0, y: 24, scale: 0.95 });
+          setTargets(headerTargets, { autoAlpha: 0, y: -18 });
+          setTargets(heroTargets, { autoAlpha: 0, y: 42 });
+          setTargets(revealTargets, { autoAlpha: 0, y: 42 });
+          setTargets(cardTargets, { autoAlpha: 0, y: 44, scale: 0.985 });
+          setTargets(liveStatTargets, { autoAlpha: 0, y: 24, scale: 0.95 });
 
           gsap
             .timeline({ delay: 0.12 })
-            .to(".js-header", { autoAlpha: 1, y: 0, duration: 0.6 })
+            .to(headerTargets, { autoAlpha: 1, y: 0, duration: 0.6 })
             .to(
-              ".js-hero-item",
+              heroTargets,
               {
                 autoAlpha: 1,
                 y: 0,
@@ -146,10 +159,11 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
               },
             });
 
-            liveTimeline
-              .to(".js-live-visual", { scale: 1.035, y: -24, duration: 1 })
-              .to(
-                ".js-live-stat",
+            liveTimeline.to(".js-live-visual", { scale: 1.035, y: -24, duration: 1 });
+
+            if (liveStatTargets.length > 0) {
+              liveTimeline.to(
+                liveStatTargets,
                 {
                   autoAlpha: 1,
                   y: 0,
@@ -159,8 +173,9 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
                 },
                 0.08,
               );
-          } else {
-            gsap.to(".js-live-stat", {
+            }
+          } else if (liveStatTargets.length > 0) {
+            gsap.to(liveStatTargets, {
               autoAlpha: 1,
               y: 0,
               scale: 1,
@@ -225,4 +240,3 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
     </div>
   );
 }
-

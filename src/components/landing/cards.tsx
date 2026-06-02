@@ -12,21 +12,15 @@ import {
 } from "@tabler/icons-react";
 import { Badge, MetaItem } from "@/components/landing/badge";
 import { ButtonLink } from "@/components/landing/button-link";
+import type {
+  LandingActivity,
+  LandingCommunity,
+  LandingEvent,
+} from "@/components/landing/types";
 import { cn } from "@/lib/cn";
 
 type EventCardProps = {
-  event: {
-    title: string;
-    category: string;
-    status: string;
-    date: string;
-    location: string;
-    price: string;
-    href: string;
-    ctaHref: string;
-    image: string;
-    imageAlt: string;
-  };
+  event: LandingEvent;
   featured?: boolean;
 };
 
@@ -77,14 +71,7 @@ const activityIcons = {
 } as const;
 
 type ActivityCardProps = {
-  activity: {
-    title: string;
-    count: string;
-    href: string;
-    image: string;
-    imageAlt: string;
-    tone: keyof typeof activityIcons;
-  };
+  activity: LandingActivity;
 };
 
 export function ActivityCard({ activity }: ActivityCardProps) {
@@ -112,14 +99,7 @@ export function ActivityCard({ activity }: ActivityCardProps) {
 }
 
 type CommunityCardProps = {
-  community: {
-    title: string;
-    members: string;
-    description: string;
-    href: string;
-    image: string;
-    imageAlt: string;
-  };
+  community: LandingCommunity;
 };
 
 export function CommunityCard({ community }: CommunityCardProps) {
@@ -170,4 +150,3 @@ export function BookingStep({ step }: BookingStepProps) {
     </article>
   );
 }
-

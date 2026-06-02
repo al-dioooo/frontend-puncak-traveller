@@ -9,15 +9,7 @@ import {
 } from "@tabler/icons-react";
 import { Badge } from "@/components/landing/badge";
 import { ButtonLink } from "@/components/landing/button-link";
-import {
-  activities,
-  bookingSteps,
-  communities,
-  events,
-  galleryImages,
-  heroStats,
-  liveStats,
-} from "@/components/landing/data";
+import { bookingSteps } from "@/components/landing/data";
 import {
   ActivityCard,
   BookingStep,
@@ -25,8 +17,64 @@ import {
   EventCard,
 } from "@/components/landing/cards";
 import { SectionHeading } from "@/components/landing/section-heading";
+import type {
+  LandingActivity,
+  LandingCommunity,
+  LandingEvent,
+  LandingGalleryImage,
+  LandingHeroStat,
+  LandingLiveEvent,
+} from "@/components/landing/types";
 
-export function HeroSection() {
+type HeroSectionProps = {
+  stats: LandingHeroStat[];
+  upcomingEventsCount: number;
+};
+
+type EventsSectionProps = {
+  events: LandingEvent[];
+};
+
+type ActivitiesSectionProps = {
+  activities: LandingActivity[];
+};
+
+type LiveEventSectionProps = {
+  liveEvent: LandingLiveEvent;
+};
+
+type CommunitiesSectionProps = {
+  communities: LandingCommunity[];
+};
+
+type GallerySectionProps = {
+  images: LandingGalleryImage[];
+};
+
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="landing-empty-state js-reveal">
+      <p>{title}</p>
+      <span>{description}</span>
+    </div>
+  );
+}
+
+export function HeroSection({
+  stats,
+  upcomingEventsCount,
+}: HeroSectionProps) {
+  const eventLabel =
+    upcomingEventsCount === 0
+      ? "No events scheduled yet"
+      : `${upcomingEventsCount} upcoming ${upcomingEventsCount === 1 ? "event" : "events"}`;
+
   return (
     <section className="hero-section" aria-labelledby="hero-title">
       <div className="hero-bg js-hero-media">
@@ -43,7 +91,7 @@ export function HeroSection() {
       <div className="wrap hero-content">
         <div className="hero-copy">
           <Badge tone="light" icon={IconSparkles} className="js-hero-item">
-            4 events happening this week
+            {eventLabel}
           </Badge>
           <h1 id="hero-title" className="js-hero-item">
             Your next high-altitude adventure starts here.
@@ -63,20 +111,22 @@ export function HeroSection() {
           </div>
         </div>
 
-        <div className="hero-stats js-hero-item">
-          {heroStats.map((stat) => (
-            <div key={stat.label}>
-              <strong>{stat.value}</strong>
-              <span>{stat.label}</span>
-            </div>
-          ))}
-        </div>
+        {stats.length > 0 ? (
+          <div className="hero-stats js-hero-item">
+            {stats.map((stat) => (
+              <div key={stat.label}>
+                <strong>{stat.value}</strong>
+                <span>{stat.label}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
     </section>
   );
 }
 
-export function EventsSection() {
+export function EventsSection({ events }: EventsSectionProps) {
   return (
     <section className="section events-section" aria-labelledby="events-title">
       <div className="wrap">
@@ -89,66 +139,98 @@ export function EventsSection() {
             </ButtonLink>
           }
         />
-        <div className="events-grid">
-          {events.map((event, index) => (
-            <EventCard key={event.title} event={event} featured={index === 0} />
-          ))}
-        </div>
+        {events.length > 0 ? (
+          <div className="events-grid">
+            {events.map((event, index) => (
+              <EventCard key={event.href} event={event} featured={index === 0} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No upcoming adventures yet"
+            description="New runs, walks, and camps will appear here as soon as the Puncak crew publishes them."
+          />
+        )}
       </div>
     </section>
   );
 }
 
-export function ActivitiesSection() {
+export function ActivitiesSection({ activities }: ActivitiesSectionProps) {
   return (
     <section className="section activities-section" aria-labelledby="activities-title">
       <div className="wrap">
         <SectionHeading eyebrow="Ways to move" title="Find your kind of wild" />
-        <div className="activity-grid">
-          {activities.map((activity) => (
-            <ActivityCard key={activity.title} activity={activity} />
-          ))}
-        </div>
+        {activities.length > 0 ? (
+          <div className="activity-grid">
+            {activities.map((activity) => (
+              <ActivityCard key={activity.href} activity={activity} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="Activities are being planned"
+            description="The activity board is empty because the API has no published activity counts yet."
+          />
+        )}
       </div>
     </section>
   );
 }
 
-export function LiveEventSection() {
+export function LiveEventSection({ liveEvent }: LiveEventSectionProps) {
   return (
     <section className="section live-section js-live-pin" aria-labelledby="live-title">
       <div className="wrap live-grid">
         <div className="live-copy js-reveal">
-          <Badge tone="teal" icon={IconPlayerPlayFilled}>
-            Happening now
-          </Badge>
-          <p className="eyebrow eyebrow-teal">Happening today</p>
-          <h2 id="live-title">Forest Fun Run 10K</h2>
-          <p>
-            480 runners are on the trail right now at Taman Hutan Raya,
-            Bandung. Follow the live leaderboard and cheer them on.
-          </p>
-          <div className="live-stats">
-            {liveStats.map((stat) => (
-              <div key={stat.label} className="js-live-stat">
-                <strong>{stat.value}</strong>
-                <span>{stat.label}</span>
+          {liveEvent ? (
+            <>
+              <Badge tone="teal" icon={IconPlayerPlayFilled}>
+                Happening now
+              </Badge>
+              <p className="eyebrow eyebrow-teal">Happening today</p>
+              <h2 id="live-title">{liveEvent.title}</h2>
+              <p>{liveEvent.description}</p>
+              <div className="live-stats">
+                {liveEvent.stats.map((stat) => (
+                  <div key={stat.label} className="js-live-stat">
+                    <strong>{stat.value}</strong>
+                    <span>{stat.label}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="live-actions">
-            <ButtonLink href="/events/forest-fun-run-10k/live" icon={IconArrowRight}>
-              Live leaderboard
-            </ButtonLink>
-            <ButtonLink href="/events/forest-fun-run-10k/recap" variant="light">
-              View recap later
-            </ButtonLink>
-          </div>
+              <div className="live-actions">
+                <ButtonLink href={liveEvent.href} icon={IconArrowRight}>
+                  Live leaderboard
+                </ButtonLink>
+                <ButtonLink href={liveEvent.recapHref} variant="light">
+                  View recap later
+                </ButtonLink>
+              </div>
+            </>
+          ) : (
+            <>
+              <Badge tone="teal" icon={IconPlayerPlayFilled}>
+                Trail is quiet
+              </Badge>
+              <p className="eyebrow eyebrow-teal">No live event</p>
+              <h2 id="live-title">No one is on course right now</h2>
+              <p>
+                Live coverage will appear here when an event is actively
+                happening. Until then, browse the next published adventure.
+              </p>
+              <div className="live-actions">
+                <ButtonLink href="/events" icon={IconArrowRight}>
+                  Browse upcoming events
+                </ButtonLink>
+              </div>
+            </>
+          )}
         </div>
         <div className="live-visual js-live-visual">
           <Image
-            src="/landing/live-trail.jpg"
-            alt="Trail runners passing through a green forest route"
+            src={liveEvent?.image ?? "/landing/live-trail.jpg"}
+            alt={liveEvent?.imageAlt ?? "Trail runners passing through a green forest route"}
             fill
             sizes="(min-width: 1024px) 44vw, 100vw"
             className="image-cover"
@@ -163,7 +245,7 @@ export function LiveEventSection() {
   );
 }
 
-export function CommunitiesSection() {
+export function CommunitiesSection({ communities }: CommunitiesSectionProps) {
   return (
     <section className="section communities-section" aria-labelledby="communities-title">
       <div className="wrap">
@@ -177,11 +259,18 @@ export function CommunitiesSection() {
           }
           eyebrowTone="teal"
         />
-        <div className="community-grid">
-          {communities.map((community) => (
-            <CommunityCard key={community.title} community={community} />
-          ))}
-        </div>
+        {communities.length > 0 ? (
+          <div className="community-grid">
+            {communities.map((community) => (
+              <CommunityCard key={community.href} community={community} />
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title="No crews published yet"
+            description="Community cards will appear after the API has public Puncak crews."
+          />
+        )}
       </div>
     </section>
   );
@@ -205,7 +294,7 @@ export function BookingStepsSection() {
   );
 }
 
-export function GallerySection() {
+export function GallerySection({ images }: GallerySectionProps) {
   return (
     <section className="section gallery-section" aria-labelledby="gallery-title">
       <div className="wrap">
@@ -220,25 +309,34 @@ export function GallerySection() {
           eyebrowTone="teal"
         />
       </div>
-      <div className="gallery-viewport js-gallery">
-        <div className="gallery-track js-gallery-track">
-          {galleryImages.map((image, index) => (
-            <figure key={image.src} className="gallery-item motion-card js-card">
-              <Image
-                src={image.src}
-                alt={image.alt}
-                fill
-                sizes="(min-width: 1024px) 36vw, (min-width: 640px) 60vw, 86vw"
-                className="image-cover"
-              />
-              <figcaption>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                {image.label}
-              </figcaption>
-            </figure>
-          ))}
+      {images.length > 0 ? (
+        <div className="gallery-viewport js-gallery">
+          <div className="gallery-track js-gallery-track">
+            {images.map((image, index) => (
+              <figure key={image.src} className="gallery-item motion-card js-card">
+                <Image
+                  src={image.src}
+                  alt={image.alt}
+                  fill
+                  sizes="(min-width: 1024px) 36vw, (min-width: 640px) 60vw, 86vw"
+                  className="image-cover"
+                />
+                <figcaption>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  {image.label}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="wrap">
+          <EmptyState
+            title="No trail moments yet"
+            description="Gallery media will appear here when the API publishes public images."
+          />
+        </div>
+      )}
     </section>
   );
 }
@@ -274,4 +372,3 @@ export function FinalCtaSection() {
     </section>
   );
 }
-

@@ -11,19 +11,27 @@ import {
   LiveEventSection,
 } from "@/components/landing/sections";
 import { SmoothScrollProvider } from "@/components/landing/smooth-scroll-provider";
+import { getLandingPageData } from "@/lib/puncak-api";
+import { connection } from "next/server";
 
-export default function Home() {
+export default async function Home() {
+  await connection();
+  const landing = await getLandingPageData();
+
   return (
     <SmoothScrollProvider>
       <Header />
       <main className="landing-main">
-        <HeroSection />
-        <EventsSection />
-        <ActivitiesSection />
-        <LiveEventSection />
-        <CommunitiesSection />
+        <HeroSection
+          stats={landing.heroStats}
+          upcomingEventsCount={landing.upcomingEventsCount}
+        />
+        <EventsSection events={landing.events} />
+        <ActivitiesSection activities={landing.activities} />
+        <LiveEventSection liveEvent={landing.liveEvent} />
+        <CommunitiesSection communities={landing.communities} />
         <BookingStepsSection />
-        <GallerySection />
+        <GallerySection images={landing.galleryImages} />
         <FinalCtaSection />
       </main>
       <Footer />
