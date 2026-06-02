@@ -1,0 +1,28 @@
+import "server-only";
+
+const DEFAULT_API_BASE_URL = "http://api-puncak-traveller.test";
+
+export const backendAuthEndpoints = {
+  googleRedirect: "/api/v1/auth/google/redirect",
+  login: "/api/v1/auth/login",
+  logout: "/api/v1/auth/logout",
+  user: "/api/v1/auth/user",
+} as const;
+
+export function buildBackendAuthUrl(
+  endpoint: keyof typeof backendAuthEndpoints,
+  params?: Record<string, string>,
+) {
+  const baseUrl = process.env.PUNCAK_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+  const url = new URL(backendAuthEndpoints[endpoint], baseUrl);
+
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) {
+        url.searchParams.set(key, value);
+      }
+    });
+  }
+
+  return url;
+}

@@ -58,6 +58,7 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
           const revealTargets = root.querySelectorAll(".js-reveal");
           const cardTargets = root.querySelectorAll(".js-card");
           const liveStatTargets = root.querySelectorAll(".js-live-stat");
+          const checkoutTargets = root.querySelectorAll(".js-checkout-step");
           const setTargets = (
             targets: NodeListOf<Element> | Element[],
             vars: gsap.TweenVars,
@@ -75,6 +76,7 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
                 ...revealTargets,
                 ...cardTargets,
                 ...liveStatTargets,
+                ...checkoutTargets,
               ],
               {
                 autoAlpha: 1,
@@ -93,9 +95,10 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
           setTargets(revealTargets, { autoAlpha: 0, y: 42 });
           setTargets(cardTargets, { autoAlpha: 0, y: 44, scale: 0.985 });
           setTargets(liveStatTargets, { autoAlpha: 0, y: 24, scale: 0.95 });
+          setTargets(checkoutTargets, { autoAlpha: 0, y: 28 });
 
           gsap
-            .timeline({ delay: 0.12 })
+            .timeline()
             .to(headerTargets, { autoAlpha: 1, y: 0, duration: 0.6 })
             .to(
               heroTargets,
@@ -106,52 +109,74 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
                 duration: 0.9,
               },
               "-=0.22",
+            )
+            .to(
+              checkoutTargets,
+              {
+                autoAlpha: 1,
+                y: 0,
+                duration: 0.68,
+                stagger: 0.06,
+              },
+              heroTargets.length > 0 ? "-=0.35" : 0,
             );
 
-          gsap.to(".js-hero-media", {
-            yPercent: isDesktop ? 10 : 4,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".hero-section",
-              start: "top top",
-              end: "bottom top",
-              scrub: 0.8,
-            },
-          });
+          const heroMedia = root.querySelector(".js-hero-media");
+          const heroTrigger = root.querySelector(
+            ".hero-section, .page-hero, .event-detail-hero, .auth-page",
+          );
+          if (heroMedia && heroTrigger) {
+            gsap.to(heroMedia, {
+              yPercent: isDesktop ? 10 : 4,
+              ease: "none",
+              scrollTrigger: {
+                trigger: heroTrigger,
+                start: "top top",
+                end: "bottom top",
+                scrub: 0.8,
+              },
+            });
+          }
 
-          ScrollTrigger.batch(".js-reveal", {
-            start: "top 84%",
-            once: true,
-            onEnter: (elements) => {
-              gsap.to(elements, {
-                autoAlpha: 1,
-                y: 0,
-                stagger: 0.08,
-                overwrite: true,
-              });
-            },
-          });
+          if (revealTargets.length > 0) {
+            ScrollTrigger.batch([...revealTargets], {
+              start: "top 92%",
+              once: true,
+              onEnter: (elements) => {
+                gsap.to(elements, {
+                  autoAlpha: 1,
+                  y: 0,
+                  stagger: 0.08,
+                  overwrite: true,
+                });
+              },
+            });
+          }
 
-          ScrollTrigger.batch(".js-card", {
-            start: "top 86%",
-            once: true,
-            interval: 0.08,
-            batchMax: 4,
-            onEnter: (elements) => {
-              gsap.to(elements, {
-                autoAlpha: 1,
-                y: 0,
-                scale: 1,
-                stagger: 0.08,
-                overwrite: true,
-              });
-            },
-          });
+          if (cardTargets.length > 0) {
+            ScrollTrigger.batch([...cardTargets], {
+              start: "top 92%",
+              once: true,
+              interval: 0.08,
+              batchMax: 4,
+              onEnter: (elements) => {
+                gsap.to(elements, {
+                  autoAlpha: 1,
+                  y: 0,
+                  scale: 1,
+                  stagger: 0.08,
+                  overwrite: true,
+                });
+              },
+            });
+          }
 
-          if (isDesktop) {
+          const livePin = root.querySelector(".js-live-pin");
+          const liveVisual = root.querySelector(".js-live-visual");
+          if (isDesktop && livePin && liveVisual) {
             const liveTimeline = gsap.timeline({
               scrollTrigger: {
-                trigger: ".js-live-pin",
+                trigger: livePin,
                 start: "top top",
                 end: "+=820",
                 scrub: 1,
@@ -159,7 +184,7 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
               },
             });
 
-            liveTimeline.to(".js-live-visual", { scale: 1.035, y: -24, duration: 1 });
+            liveTimeline.to(liveVisual, { scale: 1.035, y: -24, duration: 1 });
 
             if (liveStatTargets.length > 0) {
               liveTimeline.to(
@@ -182,7 +207,7 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
               stagger: 0.1,
               scrollTrigger: {
                 trigger: ".live-stats",
-                start: "top 86%",
+                start: "top 92%",
                 once: true,
               },
             });
@@ -206,17 +231,21 @@ export function SmoothScrollProvider({ children }: SmoothScrollProviderProps) {
             });
           }
 
-          gsap.to(".js-cta-media", {
-            scale: 1.08,
-            yPercent: -7,
-            ease: "none",
-            scrollTrigger: {
-              trigger: ".final-cta-section",
-              start: "top bottom",
-              end: "bottom top",
-              scrub: 1,
-            },
-          });
+          const ctaMedia = root.querySelector(".js-cta-media");
+          const ctaSection = root.querySelector(".final-cta-section");
+          if (ctaMedia && ctaSection) {
+            gsap.to(ctaMedia, {
+              scale: 1.08,
+              yPercent: -7,
+              ease: "none",
+              scrollTrigger: {
+                trigger: ctaSection,
+                start: "top bottom",
+                end: "bottom top",
+                scrub: 1,
+              },
+            });
+          }
         },
         root,
       );

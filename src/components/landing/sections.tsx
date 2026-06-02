@@ -361,7 +361,7 @@ export function FinalCtaSection() {
           calling.
         </p>
         <div className="cta-actions">
-          <ButtonLink href="/signup" size="lg" icon={IconArrowRight}>
+          <ButtonLink href="/login" size="lg" icon={IconArrowRight}>
             Get started - it&apos;s free
           </ButtonLink>
           <ButtonLink href="/events" size="lg" variant="light">

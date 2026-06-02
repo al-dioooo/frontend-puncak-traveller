@@ -8,12 +8,28 @@ import type {
   LandingHeroStat,
   LandingLiveEvent,
 } from "@/components/landing/types";
+import type {
+  AccountBooking,
+  ContactMethod,
+  EventDetail,
+  EventSummary,
+  EventTicketTier,
+  GalleryItem,
+} from "@/lib/reference-data";
 
 const API_TIMEOUT_MS = 8000;
 const DEFAULT_API_BASE_URL = "http://api-puncak-traveller.test";
 
 type ApiEnvelope<T> = {
   data: T;
+};
+
+type ApiPaginatedEnvelope<T> = ApiEnvelope<T[]> & {
+  meta: {
+    page: number;
+    perPage: number;
+    total: number;
+  };
 };
 
 type ApiCommunity = {
@@ -27,34 +43,53 @@ type ApiCommunity = {
   member_count: number;
 };
 
-type ApiPlace = {
-  id: number;
-  community_id: number;
+type ApiTicketTier = {
+  id: string;
+  eventId: string;
   name: string;
-  lat: number;
-  lng: number;
-  description: string | null;
+  description: string;
+  price: number;
+  currency: "IDR";
+  stock: number;
+  capacityLabel: string;
+  maxPerUser?: number;
 };
 
 type ApiEvent = {
-  id: number;
-  community_id: number;
-  place_id: number | null;
-  title: string;
+  id: string;
   slug: string;
-  description: string | null;
-  activity_type: string;
-  activity_label: string;
-  distance_label: string | null;
-  status: "past" | "ongoing" | "upcoming";
-  starts_at: string;
-  ends_at: string;
-  starting_price?: number | null;
-  cover_image: string | null;
-  cover_image_url: string | null;
+  title: string;
+  category: EventSummary["category"];
+  activity: EventSummary["activity"];
+  status: EventSummary["status"];
+  statusLabel: string;
+  startsAt: string;
+  endsAt?: string;
+  dateLabel: string;
+  fullDateLabel: string;
+  timeLabel: string;
+  location: string;
+  region: string;
+  priceFrom: number;
+  priceLabel: string;
+  spotsRemaining: number;
+  spotsLabel: string;
+  imageUrl: string;
+  imageAlt: string;
+  detailHref: string;
+  bookingHref: string;
+  recapHref?: string;
+  organiser?: EventDetail["organiser"] & { id?: string };
+  distanceLabel?: string;
+  elevationLabel?: string;
+  difficulty?: string;
+  venueName?: string;
+  venueDescription?: string;
+  summary?: string[];
+  includes?: string[];
+  schedule?: EventDetail["schedule"];
+  tickets?: ApiTicketTier[];
   participant_count?: number;
-  community?: ApiCommunity;
-  place?: ApiPlace;
 };
 
 type ApiLandingActivity = {
@@ -69,14 +104,13 @@ type ApiLandingStat = {
 };
 
 type ApiGallery = {
-  id: number;
-  community_id: number;
-  event_id: number | null;
-  image_path: string;
-  image_url: string;
-  caption: string | null;
-  community?: ApiCommunity;
-  event?: ApiEvent;
+  id: string;
+  title: string;
+  event: string;
+  category: GalleryItem["category"];
+  year: GalleryItem["year"];
+  imageUrl: string;
+  imageAlt: string;
 };
 
 type ApiLandingPayload = {
@@ -86,6 +120,30 @@ type ApiLandingPayload = {
   live_event: ApiEvent | null;
   communities: ApiCommunity[];
   gallery: ApiGallery[];
+};
+
+export type AccountProfile = {
+  name: string;
+  location?: string;
+  memberSince: string;
+  crew?: string;
+  avatarUrl?: string;
+  stats: Array<{ value: string; label: string }>;
+};
+
+type ApiUser = {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl?: string | null;
+  location?: string | null;
+  memberSince: string;
+  crew?: string | null;
+  stats: {
+    eventsBooked: number;
+    completed: number;
+    kilometersLogged: number;
+  };
 };
 
 export type LandingPageData = {
@@ -112,12 +170,12 @@ const activityAssets: Record<
   string,
   Pick<LandingActivity, "tone" | "image" | "imageAlt">
 > = {
-  trail_run: {
+  "trail-run": {
     tone: "orange",
     image: "/landing/community-runners.jpg",
     imageAlt: "Runners moving through a forest trail",
   },
-  healthy_walk: {
+  walk: {
     tone: "teal",
     image: "/landing/community-walkers.jpg",
     imageAlt: "Walkers following a mountain path together",
@@ -127,10 +185,20 @@ const activityAssets: Record<
     image: "/landing/community-campers.jpg",
     imageAlt: "Camping tents set in a misty highland field",
   },
+  hike: {
+    tone: "earth",
+    image: "/events/misty-ridge-hike.jpg",
+    imageAlt: "A mountain ridge path covered with morning mist",
+  },
   wellness: {
     tone: "earth",
     image: "/landing/gallery-02.jpg",
     imageAlt: "A quiet mountain scene for wellness activities",
+  },
+  "fun-run": {
+    tone: "orange",
+    image: "/events/forest-fun-run.jpg",
+    imageAlt: "Runners moving through a forest route",
   },
 };
 
@@ -147,16 +215,86 @@ export async function getLandingPageData(): Promise<LandingPageData> {
   }
 }
 
-async function puncakApiFetch<T>(path: string): Promise<T> {
+export async function getEvents(): Promise<EventSummary[]> {
+  const payload = await puncakApiFetch<ApiPaginatedEnvelope<ApiEvent>>(
+    "/api/v1/events?per_page=50",
+  );
+
+  return payload.data.map(mapEventSummary);
+}
+
+export async function getEventDetailBySlugFromApi(
+  slug: string,
+): Promise<EventDetail | null> {
+  try {
+    const payload = await puncakApiFetch<ApiEnvelope<ApiEvent>>(
+      `/api/v1/events/${slug}`,
+    );
+
+    return mapEventDetail(payload.data);
+  } catch {
+    return null;
+  }
+}
+
+export async function getGalleryItems(): Promise<GalleryItem[]> {
+  const payload = await puncakApiFetch<ApiPaginatedEnvelope<ApiGallery>>(
+    "/api/v1/galleries?per_page=50",
+  );
+
+  return payload.data.map(mapGalleryItem);
+}
+
+export async function getContactMethods(): Promise<ContactMethod[]> {
+  const payload = await puncakApiFetch<ApiEnvelope<ContactMethod[]>>(
+    "/api/v1/contact-methods",
+  );
+
+  return payload.data;
+}
+
+export async function getAccountProfile(token: string): Promise<AccountProfile> {
+  const payload = await puncakApiFetch<ApiEnvelope<ApiUser>>("/api/v1/me", {
+    token,
+  });
+
+  return mapAccountProfile(payload.data);
+}
+
+export async function getAccountBookings(
+  token: string,
+  status: AccountBooking["status"] | "all" = "all",
+): Promise<AccountBooking[]> {
+  const path =
+    status === "saved"
+      ? "/api/v1/me/saved-events"
+      : `/api/v1/bookings?status=${status}`;
+  const payload = await puncakApiFetch<ApiEnvelope<AccountBooking[]>>(path, {
+    token,
+  });
+
+  return payload.data;
+}
+
+async function puncakApiFetch<T>(
+  path: string,
+  options: { token?: string } = {},
+): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
   try {
+    const headers = new Headers({
+      Accept: "application/json",
+    });
+
+    if (options.token) {
+      headers.set("Authorization", `Bearer ${options.token}`);
+    }
+
     const response = await fetch(buildApiUrl(path), {
       cache: "no-store",
-      headers: {
-        Accept: "application/json",
-      },
+      headers,
       signal: controller.signal,
     });
 
@@ -170,13 +308,13 @@ async function puncakApiFetch<T>(path: string): Promise<T> {
   }
 }
 
-function buildApiUrl(path: string): string {
+export function buildApiUrl(path: string): string {
   const baseUrl = process.env.PUNCAK_API_BASE_URL ?? DEFAULT_API_BASE_URL;
   return new URL(path, baseUrl).toString();
 }
 
 function mapLandingPayload(payload: ApiLandingPayload): LandingPageData {
-  const events = payload.upcoming_events.map(mapEvent);
+  const events = payload.upcoming_events.map(mapLandingEvent);
 
   return {
     heroStats: payload.hero_stats.map((stat) => ({
@@ -192,29 +330,103 @@ function mapLandingPayload(payload: ApiLandingPayload): LandingPageData {
   };
 }
 
-function mapEvent(event: ApiEvent): LandingEvent {
+function mapEventSummary(event: ApiEvent): EventSummary {
+  return {
+    slug: event.slug,
+    title: event.title,
+    category: event.category,
+    activity: event.activity,
+    status: event.status,
+    statusLabel: event.statusLabel,
+    date: event.dateLabel,
+    fullDate: event.fullDateLabel,
+    time: event.timeLabel,
+    location: event.location,
+    region: event.region,
+    priceLabel: event.priceLabel,
+    spotsLabel: event.spotsLabel,
+    image: event.imageUrl,
+    imageAlt: event.imageAlt,
+    detailHref: event.detailHref,
+    bookingHref: event.bookingHref,
+    recapHref: event.recapHref,
+  };
+}
+
+function mapEventDetail(event: ApiEvent): EventDetail {
+  return {
+    ...mapEventSummary(event),
+    organiser: {
+      name: event.organiser?.name ?? "Puncak Travellers",
+      description:
+        event.organiser?.description ?? "Organiser - community adventure host",
+      eventsHosted: event.organiser?.eventsHosted ?? 240,
+      href: event.organiser?.href ?? "/about",
+    },
+    distanceLabel: event.distanceLabel ?? event.category,
+    elevationLabel: event.elevationLabel ?? "Community-supported route",
+    difficulty: event.difficulty ?? "Friendly pace",
+    summary:
+      event.summary && event.summary.length > 0
+        ? event.summary
+        : [`${event.title} is part of the Puncak Travellers calendar.`],
+    includes: event.includes ?? [],
+    schedule: event.schedule ?? [],
+    venueName: event.venueName ?? event.location,
+    venueDescription:
+      event.venueDescription ??
+      "Full route notes will be shared with registered participants.",
+    tickets: (event.tickets ?? []).map(mapTicketTier),
+  };
+}
+
+function mapTicketTier(ticket: ApiTicketTier): EventTicketTier {
+  return {
+    id: ticket.id,
+    name: ticket.name,
+    description: ticket.description,
+    price: ticket.price,
+    priceLabel: formatPrice(ticket.price),
+    stock: ticket.stock,
+    capacityLabel: ticket.capacityLabel,
+  };
+}
+
+function mapGalleryItem(item: ApiGallery): GalleryItem {
+  return {
+    id: item.id,
+    title: item.title,
+    event: item.event,
+    category: item.category,
+    year: item.year,
+    image: item.imageUrl,
+    imageAlt: item.imageAlt,
+  };
+}
+
+function mapLandingEvent(event: ApiEvent): LandingEvent {
   return {
     title: event.title,
-    category: event.activity_label,
-    status: toTitleCase(event.status),
-    date: formatEventDate(event.starts_at, event.ends_at),
-    location: event.place?.name ?? event.community?.name ?? "Puncak region",
-    price: formatPrice(event.starting_price),
-    href: `/events/${event.slug}`,
-    ctaHref: `/events/${event.slug}/booking`,
-    image: event.cover_image_url ?? "/landing/trail-run.jpg",
-    imageAlt: event.title,
+    category: event.category,
+    status: event.statusLabel,
+    date: event.dateLabel || formatEventDate(event.startsAt, event.endsAt),
+    location: event.location,
+    price: event.priceLabel.replace("From ", ""),
+    href: event.detailHref,
+    ctaHref: event.bookingHref,
+    image: event.imageUrl ?? "/landing/trail-run.jpg",
+    imageAlt: event.imageAlt || event.title,
   };
 }
 
 function mapActivity(activity: ApiLandingActivity): LandingActivity {
-  const asset = activityAssets[activity.activity_type] ?? activityAssets.trail_run;
-  const slug = activity.activity_type.replaceAll("_", "-");
+  const asset =
+    activityAssets[activity.activity_type] ?? activityAssets["trail-run"];
 
   return {
     title: activity.activity_label,
     count: `${activity.upcoming_count} upcoming`,
-    href: `/events?activity=${slug}`,
+    href: `/events?activity=${activity.activity_type}`,
     image: asset.image,
     imageAlt: asset.imageAlt,
     tone: asset.tone,
@@ -226,24 +438,24 @@ function mapLiveEvent(event: ApiEvent | null): LandingLiveEvent {
     return null;
   }
 
-  const startedAt = new Date(event.starts_at);
+  const startedAt = new Date(event.startsAt);
 
   return {
     title: event.title,
     description:
-      event.description ??
-      `${event.activity_label} is happening now at ${event.place?.name ?? "the Puncak trail"}.`,
+      event.summary?.[0] ??
+      `${event.category} is happening now at ${event.location}.`,
     href: `/events/${event.slug}/live`,
-    recapHref: `/events/${event.slug}/recap`,
-    image: event.cover_image_url ?? "/landing/live-trail.jpg",
-    imageAlt: event.title,
+    recapHref: event.recapHref ?? `/events/${event.slug}/recap`,
+    image: event.imageUrl ?? "/landing/live-trail.jpg",
+    imageAlt: event.imageAlt || event.title,
     stats: [
       {
         value: formatCompactNumber(event.participant_count ?? 0),
         label: "On course",
       },
       {
-        value: event.distance_label ?? event.activity_label,
+        value: event.distanceLabel ?? event.category,
         label: "Distance",
       },
       {
@@ -263,7 +475,8 @@ function mapCommunity(community: ApiCommunity): LandingCommunity {
     title: community.name,
     members: `${formatCompactNumber(community.member_count)} members`,
     description:
-      community.description ?? "A Puncak Travellers crew for shared healthy adventures.",
+      community.description ??
+      "A Puncak Travellers crew for shared healthy adventures.",
     href: `/communities/${community.slug}`,
     image: community.image_url ?? "/landing/community-runners.jpg",
     imageAlt: community.name,
@@ -272,15 +485,29 @@ function mapCommunity(community: ApiCommunity): LandingCommunity {
 
 function mapGalleryImage(gallery: ApiGallery): LandingGalleryImage {
   return {
-    src: gallery.image_url,
-    alt: gallery.caption ?? gallery.event?.title ?? "Puncak Travellers gallery moment",
-    label: gallery.caption ?? gallery.event?.title ?? gallery.community?.name ?? "Trail moment",
+    src: gallery.imageUrl,
+    alt: gallery.imageAlt,
+    label: gallery.title,
   };
 }
 
-function formatEventDate(startsAt: string, endsAt: string): string {
+function mapAccountProfile(user: ApiUser): AccountProfile {
+  return {
+    name: user.name,
+    location: user.location ?? "Indonesia",
+    memberSince: user.memberSince,
+    crew: user.crew ?? "Puncak Travellers",
+    avatarUrl: user.avatarUrl ?? undefined,
+    stats: [
+      { value: String(user.stats.eventsBooked), label: "Events booked" },
+      { value: String(user.stats.completed), label: "Completed" },
+      { value: String(user.stats.kilometersLogged), label: "KM logged" },
+    ],
+  };
+}
+
+function formatEventDate(startsAt: string, endsAt?: string): string {
   const start = new Date(startsAt);
-  const end = new Date(endsAt);
   const startDay = start.toLocaleDateString("en-US", {
     weekday: "short",
     day: "numeric",
@@ -292,13 +519,19 @@ function formatEventDate(startsAt: string, endsAt: string): string {
     minute: "2-digit",
     timeZone: "Asia/Jakarta",
   });
+
+  if (!endsAt) {
+    return `${startDay} - ${startTime}`;
+  }
+
+  const end = new Date(endsAt);
   const endTime = end.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "Asia/Jakarta",
   });
 
-  return `${startDay} · ${startTime}-${endTime}`;
+  return `${startDay} - ${startTime}-${endTime}`;
 }
 
 function formatPrice(price: number | null | undefined): string {
@@ -320,11 +553,4 @@ function formatCompactNumber(value: number): string {
     maximumFractionDigits: 1,
     notation: "compact",
   }).format(value);
-}
-
-function toTitleCase(value: string): string {
-  return value
-    .split("_")
-    .map((word) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`)
-    .join(" ");
 }

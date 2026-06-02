@@ -1,9 +1,9 @@
 export const navLinks = [
   { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
-  { label: "Communities", href: "/communities" },
   { label: "Galleries", href: "/galleries" },
   { label: "About", href: "/about" },
+  { label: "Contact", href: "/contact" },
 ] as const;
 
 export const heroStats = [
@@ -182,10 +182,10 @@ export const footerGroups = [
   {
     title: "Community",
     links: [
-      { label: "Puncak Runners", href: "/communities/puncak-runners" },
-      { label: "Puncak Campers", href: "/communities/puncak-campers" },
-      { label: "Become a member", href: "/signup" },
-      { label: "Volunteer", href: "/volunteer" },
+      { label: "Puncak Runners", href: "/about#community" },
+      { label: "Puncak Campers", href: "/about#community" },
+      { label: "Become a member", href: "/login" },
+      { label: "Volunteer", href: "/contact" },
     ],
   },
   {
@@ -198,4 +198,3 @@ export const footerGroups = [
     ],
   },
 ] as const;
-

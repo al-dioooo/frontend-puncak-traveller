@@ -30,7 +30,7 @@ export function Header() {
           <ButtonLink href="/login" variant="ghost" size="sm">
             Log in
           </ButtonLink>
-          <ButtonLink href="/signup" variant="light" size="sm">
+          <ButtonLink href="/login" variant="light" size="sm">
             Sign up
           </ButtonLink>
         </div>
@@ -68,7 +68,7 @@ export function Header() {
           <ButtonLink href="/login" variant="outline">
             Log in
           </ButtonLink>
-          <ButtonLink href="/signup" variant="primary">
+          <ButtonLink href="/login" variant="primary">
             Sign up
           </ButtonLink>
         </div>

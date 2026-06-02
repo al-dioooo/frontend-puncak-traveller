@@ -1,0 +1,58 @@
+import { NextRequest } from "next/server";
+import { buildApiUrl } from "@/lib/puncak-api";
+
+type ProxyContext = {
+  params: Promise<{ path: string[] }>;
+};
+
+export async function GET(request: NextRequest, context: ProxyContext) {
+  return forwardRequest(request, context);
+}
+
+export async function POST(request: NextRequest, context: ProxyContext) {
+  return forwardRequest(request, context);
+}
+
+export async function PATCH(request: NextRequest, context: ProxyContext) {
+  return forwardRequest(request, context);
+}
+
+export async function DELETE(request: NextRequest, context: ProxyContext) {
+  return forwardRequest(request, context);
+}
+
+async function forwardRequest(request: NextRequest, context: ProxyContext) {
+  const { path } = await context.params;
+  const target = new URL(buildApiUrl(`/api/v1/${path.join("/")}`));
+  request.nextUrl.searchParams.forEach((value, key) => {
+    target.searchParams.set(key, value);
+  });
+
+  const headers = new Headers({
+    Accept: "application/json",
+  });
+  const authorization = request.headers.get("Authorization");
+  const contentType = request.headers.get("Content-Type");
+
+  if (authorization) {
+    headers.set("Authorization", authorization);
+  }
+
+  if (contentType) {
+    headers.set("Content-Type", contentType);
+  }
+
+  const response = await fetch(target, {
+    body: request.method === "GET" ? undefined : await request.text(),
+    cache: "no-store",
+    headers,
+    method: request.method,
+  });
+
+  return new Response(await response.text(), {
+    headers: {
+      "Content-Type": response.headers.get("Content-Type") ?? "application/json",
+    },
+    status: response.status,
+  });
+}

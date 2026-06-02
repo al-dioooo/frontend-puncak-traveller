@@ -22,7 +22,7 @@ export function Footer() {
               <h2>{group.title}</h2>
               <ul>
                 {group.links.map((link) => (
-                  <li key={link.href}>
+                  <li key={`${group.title}-${link.label}`}>
                     <Link href={link.href}>{link.label}</Link>
                   </li>
                 ))}
@@ -43,4 +43,3 @@ export function Footer() {
     </footer>
   );
 }
-
