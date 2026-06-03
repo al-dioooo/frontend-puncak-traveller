@@ -81,7 +81,7 @@ export const activities = [
     title: "Wellness",
     count: "6 upcoming",
     href: "/events?activity=wellness",
-    image: "/landing/gallery-02.jpg",
+    image: "/events/mindful-mountain-yoga.jpg",
     imageAlt: "A quiet mountain scene for wellness activities",
     tone: "earth",
   },
@@ -138,34 +138,6 @@ export const bookingSteps = [
     title: "Show up & thrive",
     description:
       "Get your QR ticket, meet the community, and reach the puncak together.",
-  },
-] as const;
-
-export const galleryImages = [
-  {
-    src: "/landing/gallery-01.jpg",
-    alt: "Puncak Travellers crossing a highland trail",
-    label: "Morning climb",
-  },
-  {
-    src: "/landing/gallery-02.jpg",
-    alt: "A calm mountain view from the trail",
-    label: "Fresh air",
-  },
-  {
-    src: "/landing/gallery-03.jpg",
-    alt: "Friends resting during a community adventure",
-    label: "Crew stop",
-  },
-  {
-    src: "/landing/gallery-04.jpg",
-    alt: "Highland scenery from a Puncak Travellers event",
-    label: "Open ridge",
-  },
-  {
-    src: "/landing/gallery-05.jpg",
-    alt: "Trail moment from a mountain event",
-    label: "Trail joy",
   },
 ] as const;
 

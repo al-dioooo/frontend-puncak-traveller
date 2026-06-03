@@ -63,6 +63,7 @@ type ApiEvent = {
   activity: EventSummary["activity"];
   status: EventSummary["status"];
   statusLabel: string;
+  createdAt?: string;
   startsAt: string;
   endsAt?: string;
   dateLabel: string;
@@ -109,7 +110,7 @@ type ApiGallery = {
   event: string;
   category: GalleryItem["category"];
   year: GalleryItem["year"];
-  imageUrl: string;
+  imageUrl: string | null;
   imageAlt: string;
 };
 
@@ -194,7 +195,7 @@ const activityAssets: Record<
   },
   wellness: {
     tone: "earth",
-    image: "/landing/gallery-02.jpg",
+    image: "/events/mindful-mountain-yoga.jpg",
     imageAlt: "A quiet mountain scene for wellness activities",
   },
   "fun-run": {
@@ -222,16 +223,18 @@ export async function getEvents(): Promise<EventSummary[]> {
     "/api/v1/events?per_page=50",
   );
 
-  return payload.data.map(mapEventSummary);
+  return sortEventsForListing(payload.data.map(mapEventSummary));
 }
 
 export async function getEventDetailBySlugFromApi(
   slug: string,
+  preview?: boolean,
 ): Promise<EventDetail | null> {
   try {
-    const payload = await puncakApiFetch<ApiEnvelope<ApiEvent>>(
-      `/api/v1/events/${slug}`,
-    );
+    const path = preview
+      ? `/api/v1/events/${slug}?preview=true`
+      : `/api/v1/events/${slug}`;
+    const payload = await puncakApiFetch<ApiEnvelope<ApiEvent>>(path);
 
     return mapEventDetail(payload.data);
   } catch {
@@ -244,7 +247,7 @@ export async function getGalleryItems(): Promise<GalleryItem[]> {
     "/api/v1/galleries?per_page=50",
   );
 
-  return payload.data.map(mapGalleryItem);
+  return payload.data.filter(hasGalleryImage).map(mapGalleryItem);
 }
 
 export async function getContactMethods(): Promise<ContactMethod[]> {
@@ -328,7 +331,7 @@ function mapLandingPayload(payload: ApiLandingPayload): LandingPageData {
     activities: payload.activities.map(mapActivity),
     liveEvent: mapLiveEvent(payload.live_event),
     communities: payload.communities.map(mapCommunity),
-    galleryImages: payload.gallery.map(mapGalleryImage),
+    galleryImages: payload.gallery.filter(hasGalleryImage).map(mapGalleryImage),
   };
 }
 
@@ -340,6 +343,7 @@ function mapEventSummary(event: ApiEvent): EventSummary {
     activity: event.activity,
     status: event.status,
     statusLabel: event.statusLabel,
+    createdAt: event.createdAt,
     date: event.dateLabel,
     fullDate: event.fullDateLabel,
     time: event.timeLabel,
@@ -353,6 +357,35 @@ function mapEventSummary(event: ApiEvent): EventSummary {
     bookingHref: event.bookingHref,
     recapHref: event.recapHref,
   };
+}
+
+const eventListingStatusRank: Record<EventSummary["status"], number> = {
+  upcoming: 0,
+  ongoing: 1,
+  completed: 2,
+};
+
+function sortEventsForListing(events: EventSummary[]): EventSummary[] {
+  return [...events].sort((a, b) => {
+    const statusDelta =
+      eventListingStatusRank[a.status] - eventListingStatusRank[b.status];
+
+    if (statusDelta !== 0) {
+      return statusDelta;
+    }
+
+    return getOptionalTimestamp(b.createdAt) - getOptionalTimestamp(a.createdAt);
+  });
+}
+
+function getOptionalTimestamp(value?: string): number {
+  if (!value) {
+    return 0;
+  }
+
+  const timestamp = Date.parse(value);
+
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 function mapEventDetail(event: ApiEvent): EventDetail {
@@ -394,7 +427,15 @@ function mapTicketTier(ticket: ApiTicketTier): EventTicketTier {
   };
 }
 
-function mapGalleryItem(item: ApiGallery): GalleryItem {
+type ApiGalleryWithImage = ApiGallery & {
+  imageUrl: string;
+};
+
+function hasGalleryImage(item: ApiGallery): item is ApiGalleryWithImage {
+  return typeof item.imageUrl === "string" && item.imageUrl.length > 0;
+}
+
+function mapGalleryItem(item: ApiGalleryWithImage): GalleryItem {
   return {
     id: item.id,
     title: item.title,
@@ -485,7 +526,7 @@ function mapCommunity(community: ApiCommunity): LandingCommunity {
   };
 }
 
-function mapGalleryImage(gallery: ApiGallery): LandingGalleryImage {
+function mapGalleryImage(gallery: ApiGalleryWithImage): LandingGalleryImage {
   return {
     src: gallery.imageUrl,
     alt: gallery.imageAlt,

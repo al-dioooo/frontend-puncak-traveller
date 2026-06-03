@@ -25,6 +25,7 @@ import type {
   LandingHeroStat,
   LandingLiveEvent,
 } from "@/components/landing/types";
+import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
 type HeroSectionProps = {
   stats: LandingHeroStat[];
@@ -234,6 +235,7 @@ export function LiveEventSection({ liveEvent }: LiveEventSectionProps) {
             fill
             sizes="(min-width: 1024px) 44vw, 100vw"
             className="image-cover"
+            unoptimized={shouldBypassImageOptimization(liveEvent?.image ?? "/landing/live-trail.jpg")}
           />
           <div className="live-orbit">
             <IconMountain aria-hidden size={28} />
@@ -320,6 +322,7 @@ export function GallerySection({ images }: GallerySectionProps) {
                   fill
                   sizes="(min-width: 1024px) 36vw, (min-width: 640px) 60vw, 86vw"
                   className="image-cover"
+                  unoptimized={shouldBypassImageOptimization(image.src)}
                 />
                 <figcaption>
                   <span>{String(index + 1).padStart(2, "0")}</span>

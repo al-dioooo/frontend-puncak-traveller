@@ -18,6 +18,7 @@ import type {
   LandingEvent,
 } from "@/components/landing/types";
 import { cn } from "@/lib/cn";
+import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
 type EventCardProps = {
   event: LandingEvent;
@@ -34,6 +35,7 @@ export function EventCard({ event, featured = false }: EventCardProps) {
           fill
           sizes={featured ? "(min-width: 1024px) 420px, 100vw" : "(min-width: 1024px) 360px, 100vw"}
           className="image-cover"
+          unoptimized={shouldBypassImageOptimization(event.image)}
         />
         <div className="event-card-image-shade" />
         <div className="event-card-badges">
@@ -112,6 +114,7 @@ export function CommunityCard({ community }: CommunityCardProps) {
           fill
           sizes="(min-width: 1024px) 360px, 100vw"
           className="image-cover"
+          unoptimized={shouldBypassImageOptimization(community.image)}
         />
       </Link>
       <div className="community-body">

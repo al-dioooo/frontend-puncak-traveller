@@ -16,10 +16,16 @@ import { cn } from "@/lib/cn";
 type SortMode = "date" | "price" | "spots";
 
 const sortOptions: Array<{ value: SortMode; label: string }> = [
-  { value: "date", label: "Date" },
+  { value: "date", label: "Newest" },
   { value: "price", label: "Price" },
   { value: "spots", label: "Spots" },
 ];
+
+const statusSortRank: Record<EventStatus, number> = {
+  upcoming: 0,
+  ongoing: 1,
+  completed: 2,
+};
 
 function getApproxPrice(priceLabel: string) {
   if (priceLabel.toLowerCase().includes("free")) return 0;
@@ -62,11 +68,25 @@ export function EventsExplorer({ events }: EventsExplorerProps) {
           .includes(normalizedQuery);
       })
       .sort((a, b) => {
+        const statusDelta = statusSortRank[a.status] - statusSortRank[b.status];
+
+        if (statusDelta !== 0) {
+          return statusDelta;
+        }
+
         if (sort === "price") {
-          return getApproxPrice(a.priceLabel) - getApproxPrice(b.priceLabel);
+          const priceDelta = getApproxPrice(a.priceLabel) - getApproxPrice(b.priceLabel);
+
+          if (priceDelta !== 0) {
+            return priceDelta;
+          }
         }
         if (sort === "spots") {
-          return getApproxSpots(b.spotsLabel) - getApproxSpots(a.spotsLabel);
+          const spotsDelta = getApproxSpots(b.spotsLabel) - getApproxSpots(a.spotsLabel);
+
+          if (spotsDelta !== 0) {
+            return spotsDelta;
+          }
         }
         return events.indexOf(a) - events.indexOf(b);
       });

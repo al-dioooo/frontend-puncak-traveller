@@ -15,12 +15,14 @@ type LoginPanelProps = {
   returnTo?: string;
   onAuthenticated?: () => void;
   compact?: boolean;
+  isBooking?: boolean;
 };
 
 export function LoginPanel({
   returnTo = "/account",
   onAuthenticated,
   compact = false,
+  isBooking = false
 }: LoginPanelProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -76,9 +78,13 @@ export function LoginPanel({
   return (
     <div className={compact ? "login-panel login-panel-compact" : "login-panel js-card"}>
       <div className="login-panel-head">
-        <p className="eyebrow eyebrow-teal">Welcome back</p>
-        <h2>Halo again</h2>
-        <p>Log in to continue your adventure.</p>
+        {!isBooking && (
+          <>
+            <p className="eyebrow eyebrow-teal">Welcome back</p>
+            <h2>Halo again</h2>
+            <p>Log in to continue your adventure.</p>
+          </>
+        )}
       </div>
 
       <ActionButton

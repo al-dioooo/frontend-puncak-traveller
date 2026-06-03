@@ -225,15 +225,15 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     const attendeeName = auth?.name?.trim() || "Puncak Traveller";
     const attendees = auth?.email
       ? selectedRows.flatMap((row) =>
-          Array.from({ length: row.quantity }, (_, index) => ({
-            email: auth.email,
-            name:
-              index === 0
-                ? attendeeName
-                : `${attendeeName} ${index + 1}`,
-            ticketTierId: row.id,
-          })),
-        )
+        Array.from({ length: row.quantity }, (_, index) => ({
+          email: auth.email,
+          name:
+            index === 0
+              ? attendeeName
+              : `${attendeeName} ${index + 1}`,
+          ticketTierId: row.id,
+        })),
+      )
       : undefined;
 
     const response = await fetch("/api/puncak/bookings", {
@@ -399,6 +399,7 @@ export function BookingSignInStep() {
       <RequireSelection>
         <LoginPanel
           compact
+          isBooking
           returnTo={`${event.bookingHref}/confirm`}
           onAuthenticated={() => setSignedIn(true)}
         />

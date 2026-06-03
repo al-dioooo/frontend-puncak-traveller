@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   IconSearch,
@@ -15,6 +16,7 @@ import {
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { cn } from "@/lib/cn";
+import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
 interface ApiEvent {
   slug: string;
@@ -27,6 +29,8 @@ interface ApiEvent {
   participant_count?: number;
   tickets?: Array<{ stock?: number }>;
   priceLabel?: string;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
 }
 
 type EventRow = {
@@ -40,6 +44,8 @@ type EventRow = {
   sold: number;
   capacity: number;
   priceLabel: string;
+  imageUrl: string;
+  imageAlt: string;
 };
 
 export default function AdminEventsPage() {
@@ -52,6 +58,10 @@ export default function AdminEventsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    document.title = "Event Management";
+  }, []);
 
   useEffect(() => {
     async function loadEvents() {
@@ -76,6 +86,8 @@ export default function AdminEventsPage() {
           sold: item.participant_count || 0,
           capacity: item.tickets?.reduce((acc: number, t: { stock?: number }) => acc + (t.stock || 0), 0) || 0,
           priceLabel: item.priceLabel || "Free",
+          imageUrl: item.imageUrl || "",
+          imageAlt: item.imageAlt || item.title,
         })) : [];
         setEvents(apiRows);
         setTotal(payload.meta?.total ?? apiRows.length);
@@ -162,7 +174,7 @@ export default function AdminEventsPage() {
   }
 
   return (
-    <AdminLayout activeTab="Events" title="Events">
+    <AdminLayout activeTab="Events" title="Event Management">
       {/* Toast alert */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 z-50 animate-bounce">
@@ -175,7 +187,7 @@ export default function AdminEventsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A] font-display">
-            Events
+            Event Management
           </h1>
           <p className="text-[#647589] text-[14px] mt-1 font-medium">
             {events.length} events across 6 communities · manage details, schedule & ticket inventory.
@@ -316,8 +328,19 @@ export default function AdminEventsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#F1F5F9] rounded-lg border border-[#E2E8F0] flex-shrink-0 flex items-center justify-center font-bold text-xs text-slate-400 uppercase">
-                          {e.category.slice(0, 2)}
+                        <div className="relative w-10 h-10 bg-[#F1F5F9] rounded-lg border border-[#E2E8F0] flex-shrink-0 overflow-hidden flex items-center justify-center font-bold text-xs text-slate-400 uppercase">
+                          {e.imageUrl ? (
+                            <Image
+                              src={e.imageUrl}
+                              alt={e.imageAlt}
+                              fill
+                              sizes="40px"
+                              className="object-cover"
+                              unoptimized={shouldBypassImageOptimization(e.imageUrl)}
+                            />
+                          ) : (
+                            e.category.slice(0, 2)
+                          )}
                         </div>
                         <div>
                           <span className="text-[13.5px] font-bold text-[#0F172A] block leading-tight">

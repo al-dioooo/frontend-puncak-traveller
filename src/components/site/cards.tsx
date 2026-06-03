@@ -14,6 +14,7 @@ import type {
   GalleryItem,
 } from "@/lib/reference-data";
 import { cn } from "@/lib/cn";
+import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
 const statusTone: Record<EventSummary["status"], "orange" | "teal" | "navy"> = {
   completed: "navy",
@@ -37,6 +38,7 @@ export function EventListingCard({ event }: EventListingCardProps) {
           fill
           sizes="(min-width: 1180px) 360px, (min-width: 760px) 42vw, 100vw"
           className="image-cover"
+          unoptimized={shouldBypassImageOptimization(event.image)}
         />
         <div className="listing-card-badges">
           <Badge tone={statusTone[event.status]}>{event.statusLabel}</Badge>
@@ -90,6 +92,7 @@ export function GalleryCard({ item, featured = false }: GalleryCardProps) {
         fill
         sizes={featured ? "(min-width: 1024px) 48vw, 100vw" : "(min-width: 1024px) 30vw, 100vw"}
         className="image-cover"
+        unoptimized={shouldBypassImageOptimization(item.image)}
       />
       <figcaption>
         <span>{item.event}</span>

@@ -38,6 +38,8 @@ type ApiEventDetail = {
   endsAt?: string;
   location?: string;
   publicationStatus?: string;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
   organiser?: { name?: string };
   tickets?: Array<{
     id?: string;
@@ -56,6 +58,7 @@ type EditContext = {
 export default function AdminEditEventPage({ params }: EditContext) {
   const router = useRouter();
   const { slug } = use(params);
+  const pageTitle = slug === "new" ? "Create Event" : "Edit Event";
   
   // Page core states
   const [title, setTitle] = useState("Puncak Trail Run 2026");
@@ -69,6 +72,9 @@ export default function AdminEditEventPage({ params }: EditContext) {
   const [startsAt, setStartsAt] = useState("14 Jun 2026 · 06:00");
   const [endsAt, setEndsAt] = useState("14 Jun 2026 · 12:00");
   const [location, setLocation] = useState("Gunung Pangrango, Bogor");
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverPreviewUrl, setCoverPreviewUrl] = useState("/events/puncak-trail-run-2026.jpg");
+  const [coverPreviewObjectUrl, setCoverPreviewObjectUrl] = useState<string | null>(null);
   
   const [publishStatus, setPublishStatus] = useState<"Draft" | "Published" | "Archived">("Published");
   const [tickets, setTickets] = useState<TicketInputRow[]>([
@@ -81,11 +87,25 @@ export default function AdminEditEventPage({ params }: EditContext) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = pageTitle;
+  }, [pageTitle]);
+
+  useEffect(() => {
+    return () => {
+      if (coverPreviewObjectUrl) {
+        URL.revokeObjectURL(coverPreviewObjectUrl);
+      }
+    };
+  }, [coverPreviewObjectUrl]);
+
+  useEffect(() => {
     if (slug === "new") {
       setTitle("New event");
       setUrlSlug("new-event");
       setDescription("");
       setPublishStatus("Draft");
+      setCoverImageFile(null);
+      setCoverPreviewUrl("");
       setTickets([{ id: "general", name: "General Registration", price: "Rp 100.000", stock: "100", sold: 0 }]);
       return;
     }
@@ -117,6 +137,8 @@ export default function AdminEditEventPage({ params }: EditContext) {
         setEndsAt(formatDateForField(detail.endsAt));
         setLocation(detail.location || "Gunung Pangrango, Bogor");
         setPublishStatus(toDisplayPublicationStatus(detail.publicationStatus));
+        setCoverImageFile(null);
+        setCoverPreviewUrl(detail.imageUrl || "");
 
         if (detail.tickets && detail.tickets.length > 0) {
           setTickets(
@@ -172,6 +194,133 @@ export default function AdminEditEventPage({ params }: EditContext) {
     setTimeout(() => setToastMessage(null), 3000);
   }
 
+  async function handlePreview() {
+    if (slug !== "new") {
+      window.open(`/events/${urlSlug}?preview=true`, "_blank");
+      return;
+    }
+
+    setSaving(true);
+
+    const safeSlug = sanitizeSlug(urlSlug);
+
+    const eventPayload = {
+      title,
+      slug: safeSlug,
+      category: activityLabel(activity),
+      activity: activityValue(activity),
+      description,
+      starts_at: toIsoDate(startsAt),
+      ends_at: toIsoDate(endsAt),
+      location,
+      status: "draft",
+      tickets: tickets.map((ticket) => ({
+        id: ticket.id,
+        name: ticket.name,
+        price: numberFromCurrency(ticket.price),
+        stock: numberFromCurrency(ticket.stock),
+      })),
+    };
+
+    try {
+      const requestBody = coverImageFile
+        ? buildEventFormData(eventPayload, coverImageFile)
+        : JSON.stringify(eventPayload);
+      const requestHeaders = new Headers({ Accept: "application/json" });
+
+      if (!coverImageFile) {
+        requestHeaders.set("Content-Type", "application/json");
+      }
+
+      const response = await fetch("/api/puncak/events", {
+        body: requestBody,
+        headers: requestHeaders,
+        method: "POST",
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (payload.errors) {
+          console.warn("Validation errors:", payload.errors);
+          const messages = Object.values(payload.errors).flat().join("; ");
+          throw new Error(messages || payload.message || "Unable to save event.");
+        }
+        throw new Error(payload.message ?? "Unable to save event.");
+      }
+
+      setSaving(false);
+      triggerToast("Draft saved. Opening preview...");
+      setCoverImageFile(null);
+
+      if (payload.data?.imageUrl) {
+        setCoverPreviewUrl(payload.data.imageUrl);
+        setCoverPreviewObjectUrl((previousUrl) => {
+          if (previousUrl) URL.revokeObjectURL(previousUrl);
+          return null;
+        });
+      }
+
+      const newSlug = payload.data?.slug || urlSlug;
+      window.open(`/events/${newSlug}?preview=true`, "_blank");
+
+      if (payload.data?.slug) {
+        router.replace(`/admin/events/${payload.data.slug}/edit`);
+      }
+    } catch (error) {
+      setSaving(false);
+      triggerToast(error instanceof Error ? error.message : "Unable to save event.");
+    }
+  }
+
+  function sanitizeSlug(raw: string): string {
+    return raw
+      .toLowerCase()
+      .replace(/[^a-z0-9-_]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/--+/g, "-");
+  }
+
+  function handleCoverFile(file: File) {
+    if (!file.type.startsWith("image/")) {
+      triggerToast("Cover image must be a JPG or PNG file.");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      triggerToast("Cover image must be 5MB or smaller.");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setCoverImageFile(file);
+    setCoverPreviewUrl(objectUrl);
+    setCoverPreviewObjectUrl((previousUrl) => {
+      if (previousUrl) {
+        URL.revokeObjectURL(previousUrl);
+      }
+
+      return objectUrl;
+    });
+  }
+
+  function handleCoverInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (file) {
+      handleCoverFile(file);
+    }
+  }
+
+  function handleCoverDrop(event: React.DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    const file = event.dataTransfer.files?.[0];
+
+    if (file) {
+      handleCoverFile(file);
+    }
+  }
+
   async function handleSave(status?: "Draft" | "Published" | "Archived") {
     setSaving(true);
     if (status) {
@@ -181,44 +330,70 @@ export default function AdminEditEventPage({ params }: EditContext) {
     const nextStatus = status ?? publishStatus;
 
     try {
+      const safeSlug = sanitizeSlug(urlSlug);
+
+      const eventPayload = {
+        title,
+        slug: safeSlug,
+        category: activityLabel(activity),
+        activity: activityValue(activity),
+        description,
+        starts_at: toIsoDate(startsAt),
+        ends_at: toIsoDate(endsAt),
+        location,
+        status: nextStatus.toLowerCase(),
+        tickets: tickets.map((ticket) => ({
+          id: ticket.id,
+          name: ticket.name,
+          price: numberFromCurrency(ticket.price),
+          stock: numberFromCurrency(ticket.stock),
+        })),
+      };
+      const requestBody = coverImageFile
+        ? buildEventFormData(eventPayload, coverImageFile, slug === "new" ? undefined : "PATCH")
+        : JSON.stringify(eventPayload);
+      const requestMethod = coverImageFile && slug !== "new" ? "POST" : slug === "new" ? "POST" : "PATCH";
+      const requestHeaders = new Headers({ Accept: "application/json" });
+
+      if (!coverImageFile) {
+        requestHeaders.set("Content-Type", "application/json");
+      }
+
       const response = await fetch(
         slug === "new"
           ? "/api/puncak/events"
           : `/api/puncak/events/${encodeURIComponent(slug)}`,
         {
-          body: JSON.stringify({
-            title,
-            slug: urlSlug,
-            category: activityLabel(activity),
-            activity: activityValue(activity),
-            description,
-            starts_at: toIsoDate(startsAt),
-            ends_at: toIsoDate(endsAt),
-            location,
-            status: nextStatus.toLowerCase(),
-            tickets: tickets.map((ticket) => ({
-              id: ticket.id,
-              name: ticket.name,
-              price: numberFromCurrency(ticket.price),
-              stock: numberFromCurrency(ticket.stock),
-            })),
-          }),
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          method: slug === "new" ? "POST" : "PATCH",
+          body: requestBody,
+          headers: requestHeaders,
+          method: requestMethod,
         }
       );
 
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        if (payload.errors) {
+          console.warn("Validation errors:", payload.errors);
+          const messages = Object.values(payload.errors).flat().join("; ");
+          throw new Error(messages || payload.message || "Unable to save event.");
+        }
         throw new Error(payload.message ?? "Unable to save event.");
       }
 
       setSaving(false);
       triggerToast(status === "Draft" ? "Event saved as draft." : "Event changes published successfully.");
+      setCoverImageFile(null);
+      if (payload.data?.imageUrl) {
+        setCoverPreviewUrl(payload.data.imageUrl);
+        setCoverPreviewObjectUrl((previousUrl) => {
+          if (previousUrl) {
+            URL.revokeObjectURL(previousUrl);
+          }
+
+          return null;
+        });
+      }
 
       if (slug === "new" && payload.data?.slug) {
         router.replace(`/admin/events/${payload.data.slug}/edit`);
@@ -253,7 +428,7 @@ export default function AdminEditEventPage({ params }: EditContext) {
   }
 
   return (
-    <AdminLayout activeTab="Events" title="Edit event">
+    <AdminLayout activeTab="Events" title={pageTitle}>
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-semibold shadow-xl flex items-center gap-2 z-50 animate-bounce">
@@ -274,7 +449,7 @@ export default function AdminEditEventPage({ params }: EditContext) {
           </Link>
           <div className="flex items-center gap-3 mt-2">
             <h1 className="text-3xl font-extrabold tracking-tight text-[#0F172A] font-display">
-              Edit event
+              {pageTitle}
             </h1>
             <span
               className={cn(
@@ -297,7 +472,7 @@ export default function AdminEditEventPage({ params }: EditContext) {
         {/* Global Save Controls */}
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button
-            onClick={() => triggerToast("Preview screen is opening in a new tab.")}
+            onClick={handlePreview}
             disabled={saving}
             className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-slate-50 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm transition disabled:opacity-50"
           >
@@ -367,7 +542,7 @@ export default function AdminEditEventPage({ params }: EditContext) {
                     id="slug"
                     type="text"
                     value={urlSlug}
-                    onChange={(e) => setUrlSlug(e.target.value)}
+                    onChange={(e) => setUrlSlug(sanitizeSlug(e.target.value))}
                     className="flex-1 bg-transparent px-4 py-2.5 text-[13.5px] text-[#0F172A] outline-none border-0"
                   />
                 </div>
@@ -491,9 +666,30 @@ export default function AdminEditEventPage({ params }: EditContext) {
 
             <div className="flex flex-col sm:flex-row gap-4 items-stretch">
               <div className="w-full sm:w-48 aspect-video sm:aspect-square bg-slate-100 rounded-xl border border-[#E2E8F0] flex items-center justify-center font-bold text-slate-400 text-xs uppercase overflow-hidden">
-                Image Preview
+                {coverPreviewUrl ? (
+                  <div
+                    role="img"
+                    aria-label={`${title || "Event"} cover preview`}
+                    className="h-full w-full object-cover"
+                    style={{ background: `center / cover no-repeat url("${coverPreviewUrl}")` }}
+                  />
+                ) : (
+                  "Image Preview"
+                )}
               </div>
-              <div className="flex-1 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8F7F5] flex flex-col justify-center items-center p-6 text-center cursor-pointer hover:bg-slate-50 transition">
+              <label
+                htmlFor="cover-image"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={handleCoverDrop}
+                className="flex-1 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8F7F5] flex flex-col justify-center items-center p-6 text-center cursor-pointer hover:bg-slate-50 transition"
+              >
+                <input
+                  id="cover-image"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={handleCoverInputChange}
+                  className="sr-only"
+                />
                 <IconPhoto className="w-7 h-7 text-[#647589] mb-2" />
                 <div className="text-[12.5px] font-bold text-[#0F172A]">
                   Drop a new image or <span className="text-[#F37820] hover:underline">browse</span>
@@ -501,7 +697,12 @@ export default function AdminEditEventPage({ params }: EditContext) {
                 <div className="text-[11px] text-[#647589] mt-1">
                   JPG or PNG · 16:10 · up to 5MB
                 </div>
-              </div>
+                {coverImageFile ? (
+                  <div className="mt-2 text-[11px] font-bold text-[#0D9488]">
+                    {coverImageFile.name}
+                  </div>
+                ) : null}
+              </label>
             </div>
           </div>
 
@@ -728,6 +929,52 @@ function toIsoDate(value: string): string {
 
 function numberFromCurrency(value: string): number {
   return Number(value.replace(/[^\d]/g, "")) || 0;
+}
+
+type EventPayload = {
+  title: string;
+  slug: string;
+  category: string;
+  activity: string;
+  description: string;
+  starts_at: string;
+  ends_at: string;
+  location: string;
+  status: string;
+  tickets: Array<{
+    id: string;
+    name: string;
+    price: number;
+    stock: number;
+  }>;
+};
+
+function buildEventFormData(payload: EventPayload, image: File, method?: "PATCH"): FormData {
+  const formData = new FormData();
+
+  if (method) {
+    formData.set("_method", method);
+  }
+
+  formData.set("title", payload.title);
+  formData.set("slug", payload.slug);
+  formData.set("category", payload.category);
+  formData.set("activity", payload.activity);
+  formData.set("description", payload.description);
+  formData.set("starts_at", payload.starts_at);
+  formData.set("ends_at", payload.ends_at);
+  formData.set("location", payload.location);
+  formData.set("status", payload.status);
+  formData.set("image", image);
+
+  payload.tickets.forEach((ticket, index) => {
+    formData.set(`tickets[${index}][id]`, ticket.id);
+    formData.set(`tickets[${index}][name]`, ticket.name);
+    formData.set(`tickets[${index}][price]`, String(ticket.price));
+    formData.set(`tickets[${index}][stock]`, String(ticket.stock));
+  });
+
+  return formData;
 }
 
 function activityValue(value: string): string {

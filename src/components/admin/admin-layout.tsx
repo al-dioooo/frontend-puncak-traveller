@@ -38,18 +38,18 @@ export function AdminLayout({ children, activeTab, title }: AdminLayoutProps) {
     router.push("/login");
   }
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  count: number | string | null;
-  disabled?: boolean;
-}
+  interface NavItem {
+    label: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    count: number | string | null;
+    disabled?: boolean;
+  }
 
-interface NavGroup {
-  label: string;
-  items: NavItem[];
-}
+  interface NavGroup {
+    label: string;
+    items: NavItem[];
+  }
 
   // Sidebar navigation structure
   const navigationGroups: NavGroup[] = [
@@ -66,19 +66,19 @@ interface NavGroup {
           label: "Events",
           href: "/admin/events",
           icon: IconCalendarEvent,
-          count: 24,
+          count: null,
         },
         {
           label: "Galleries",
           href: "/admin/galleries",
           icon: IconPhoto,
-          count: 312,
+          count: null,
         },
         {
           label: "Bookings",
           href: "/admin/bookings",
           icon: IconTicket,
-          count: "1,284",
+          count: null,
         },
       ],
     },
@@ -130,7 +130,7 @@ interface NavGroup {
               </div>
               <nav className="space-y-0.5" aria-label={`${group.label} menu`}>
                 {group.items.map((item) => {
-                  const isActive = activeTab 
+                  const isActive = activeTab
                     ? activeTab.toLowerCase() === item.label.toLowerCase()
                     : pathname === item.href;
 

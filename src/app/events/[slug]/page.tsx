@@ -16,6 +16,7 @@ import { getEventDetailBySlugFromApi, getEvents } from "@/lib/puncak-api";
 
 type EventDetailPageProps = {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export async function generateStaticParams() {
@@ -26,9 +27,11 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: EventDetailPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const event = await getEventDetailBySlugFromApi(slug);
+  const sp = await searchParams;
+  const event = await getEventDetailBySlugFromApi(slug, sp.preview === "true");
 
   if (!event) {
     return {
@@ -42,9 +45,10 @@ export async function generateMetadata({
   };
 }
 
-export default async function EventDetailPage({ params }: EventDetailPageProps) {
+export default async function EventDetailPage({ params, searchParams }: EventDetailPageProps) {
   const { slug } = await params;
-  const event = await getEventDetailBySlugFromApi(slug);
+  const sp = await searchParams;
+  const event = await getEventDetailBySlugFromApi(slug, sp.preview === "true");
 
   if (!event) {
     notFound();

@@ -10,8 +10,19 @@ export const metadata: Metadata = {
     "Explore Puncak Travellers community photos from sunrise trails, camps, wellness sessions, and highland hikes.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function GalleriesPage() {
-  const galleryItems = await getGalleryItems();
+  let galleryItems: Awaited<ReturnType<typeof getGalleryItems>> = [];
+  let galleryError = "";
+
+  try {
+    galleryItems = await getGalleryItems();
+  } catch (error) {
+    console.error("Unable to load gallery page data.", error);
+    galleryError = "Gallery could not be loaded.";
+  }
+
   const activities = new Set(galleryItems.map((item) => item.category)).size;
   const years = new Set(galleryItems.map((item) => item.year)).size;
 
@@ -27,7 +38,7 @@ export default async function GalleriesPage() {
           { value: String(years), label: "Years" },
         ]}
       />
-      <GalleryExplorer galleryItems={galleryItems} />
+      <GalleryExplorer galleryItems={galleryItems} error={galleryError} />
     </PublicPageShell>
   );
 }

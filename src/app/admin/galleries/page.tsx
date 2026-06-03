@@ -21,9 +21,14 @@ interface ApiPhoto {
   title?: string;
   event?: string;
   category?: "trail-run" | "camping" | "walk" | "hike" | "wellness";
-  imageUrl?: string;
+  imageUrl?: string | null;
   caption?: string;
 }
+
+type DisplayableApiPhoto = ApiPhoto & {
+  id: string;
+  imageUrl: string;
+};
 
 type GalleryPhoto = {
   id: string;
@@ -40,7 +45,7 @@ export default function AdminGalleriesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   
-  // Upload simulation states
+  // Upload states
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -63,13 +68,17 @@ export default function AdminGalleriesPage() {
         if (!response.ok) throw new Error("API failed");
 
         const payload = await response.json();
-        const apiPhotos = Array.isArray(payload.data) ? payload.data.map((item: ApiPhoto) => ({
-          id: item.id || String(Math.random()),
-          title: item.caption || item.title || "Untitled image",
-          event: item.event || "Unlinked Event",
-          category: item.category || "trail-run",
-          image: item.imageUrl || "/gallery/summit-push-at-dawn.jpg",
-        })) : [];
+        const apiPhotos = Array.isArray(payload.data)
+          ? payload.data
+              .filter(hasDisplayablePhoto)
+              .map((item: DisplayableApiPhoto) => ({
+                id: item.id,
+                title: item.caption || item.title || "Untitled image",
+                event: item.event || "Unlinked Event",
+                category: item.category || "trail-run",
+                image: item.imageUrl,
+              }))
+          : [];
         setPhotos(apiPhotos);
         setTotal(payload.meta?.total ?? apiPhotos.length);
       } catch (err) {
@@ -88,6 +97,10 @@ export default function AdminGalleriesPage() {
   function triggerToast(msg: string) {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  }
+
+  function hasDisplayablePhoto(item: ApiPhoto): item is DisplayableApiPhoto {
+    return Boolean(item.id && item.imageUrl);
   }
 
   // Filtered photos lists
@@ -153,11 +166,6 @@ export default function AdminGalleriesPage() {
     }
   };
 
-  const handleLinkToEvent = () => {
-    triggerToast(`Linked ${selectedCount} photos to selected event.`);
-    setSelectedItems({});
-  };
-
   const handleDownloadSelected = () => {
     const [firstId] = Object.keys(selectedItems);
     if (!firstId) return;
@@ -199,7 +207,6 @@ export default function AdminGalleriesPage() {
     }
   };
 
-  // Mock File Upload Handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -233,12 +240,16 @@ export default function AdminGalleriesPage() {
       }
 
       const uploaded = payload.data as ApiPhoto;
+      if (!hasDisplayablePhoto(uploaded)) {
+        throw new Error("Upload succeeded but the API did not return a displayable image.");
+      }
+
       const newPhoto: GalleryPhoto = {
-        id: uploaded.id || `upload-${Date.now()}`,
+        id: uploaded.id,
         title: uploaded.title || file.name,
         event: uploaded.event || "Unlinked Event",
         category: uploaded.category || "trail-run",
-        image: uploaded.imageUrl || "/gallery/summit-push-at-dawn.jpg",
+        image: uploaded.imageUrl,
       };
 
       setUploadProgress(100);
@@ -278,16 +289,11 @@ export default function AdminGalleriesPage() {
             Galleries
           </h1>
           <p className="text-[#647589] text-[14px] mt-1 font-medium">
-            {photos.length} photos across all events. Upload, caption, and link images to the events they belong to.
+            {total} photos across all events. Upload, caption, and manage event gallery images.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => triggerToast("New album category popup")}
-            className="flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-slate-50 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm transition motion-control"
-          >
-            <span>New album</span>
-          </button>
+          {/* New album is hidden until an album API exists. */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
@@ -372,13 +378,7 @@ export default function AdminGalleriesPage() {
           </div>
 
           <div className="flex items-center flex-wrap gap-2.5">
-            <button
-              onClick={handleLinkToEvent}
-              className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 px-4 py-2 rounded-full text-xs font-bold transition"
-            >
-              <IconLink className="w-3.5 h-3.5 text-slate-300" />
-              <span>Link to event</span>
-            </button>
+            {/* Link-to-event is hidden until the CMS has an event-linking API workflow. */}
             <button
               onClick={handleDownloadSelected}
               className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 px-4 py-2 rounded-full text-xs font-bold transition"
@@ -503,7 +503,7 @@ export default function AdminGalleriesPage() {
 
         {!loading && filteredPhotos.length === 0 && (
           <div className="col-span-full py-12 text-center text-[#647589] text-[14px]">
-            No photos found.
+            {photos.length === 0 ? "No gallery photos yet." : "No photos found."}
           </div>
         )}
       </div>

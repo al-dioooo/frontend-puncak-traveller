@@ -26,6 +26,7 @@ export type EventSummary = {
   activity: ActivityType;
   status: EventStatus;
   statusLabel: string;
+  createdAt?: string;
   date: string;
   fullDate: string;
   time: string;
@@ -369,90 +370,6 @@ export const values = [
     title: "Respect the puncak",
     description:
       "Local guides, fair pay, and deep respect for the mountains and villages that host us.",
-  },
-];
-
-export const galleryItems: GalleryItem[] = [
-  {
-    id: "summit-push",
-    title: "Summit push at dawn",
-    event: "Misty Ridge Hike",
-    category: "hike",
-    year: "2026",
-    image: "/gallery/summit-push-at-dawn.jpg",
-    imageAlt: "Hikers moving toward a summit at dawn",
-  },
-  {
-    id: "pack-rolls-out",
-    title: "The 21K pack rolls out",
-    event: "Half Marathon",
-    category: "trail-run",
-    year: "2026",
-    image: "/gallery/pack-rolls-out.jpg",
-    imageAlt: "A pack of runners beginning a mountain race",
-  },
-  {
-    id: "tea-switchbacks",
-    title: "Tea-plantation switchbacks",
-    event: "Trail Run 2026",
-    category: "trail-run",
-    year: "2026",
-    image: "/gallery/tea-plantation-switchbacks.jpg",
-    imageAlt: "Trail runners moving along highland switchbacks",
-  },
-  {
-    id: "bonfire-stargazing",
-    title: "Bonfire & stargazing",
-    event: "Highland Camp",
-    category: "camping",
-    year: "2026",
-    image: "/gallery/bonfire-stargazing.jpg",
-    imageAlt: "Campers gathering near a warm highland bonfire",
-  },
-  {
-    id: "cool-down",
-    title: "Cool-down at the falls",
-    event: "Forest Fun Run",
-    category: "trail-run",
-    year: "2026",
-    image: "/gallery/cool-down-waterfall.jpg",
-    imageAlt: "A forest trail scene used for a post-run cool-down moment",
-  },
-  {
-    id: "sunrise-yoga",
-    title: "Sunrise mountain yoga",
-    event: "Mindful Mountain",
-    category: "wellness",
-    year: "2026",
-    image: "/gallery/sunrise-yoga.jpg",
-    imageAlt: "A calm sunrise mountain view for a wellness event",
-  },
-  {
-    id: "walking-crew",
-    title: "Walking crew, all paces",
-    event: "Healthy Walk",
-    category: "walk",
-    year: "2025",
-    image: "/gallery/walking-crew.jpg",
-    imageAlt: "A walking community following a green highland path",
-  },
-  {
-    id: "lakeside-morning",
-    title: "Lakeside camp morning",
-    event: "Situ Patenggang",
-    category: "camping",
-    year: "2025",
-    image: "/gallery/lakeside-camp-morning.jpg",
-    imageAlt: "Morning light over a highland camping area",
-  },
-  {
-    id: "meadow-rest",
-    title: "Meadow rest stop",
-    event: "Papandayan Hike",
-    category: "hike",
-    year: "2025",
-    image: "/gallery/meadow-rest-stop.jpg",
-    imageAlt: "Friends resting in a highland meadow during a hike",
   },
 ];
 

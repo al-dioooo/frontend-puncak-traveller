@@ -55,9 +55,21 @@ async function forwardRequest(request: NextRequest, context: ProxyContext) {
     method: request.method,
   });
 
-  return new Response(await response.text(), {
+  const responseHeaders = new Headers();
+  const responseContentType = response.headers.get("Content-Type");
+  const contentDisposition = response.headers.get("Content-Disposition");
+
+  if (responseContentType) {
+    responseHeaders.set("Content-Type", responseContentType);
+  }
+
+  if (contentDisposition) {
+    responseHeaders.set("Content-Disposition", contentDisposition);
+  }
+
+  return new Response(await response.arrayBuffer(), {
     headers: {
-      "Content-Type": response.headers.get("Content-Type") ?? "application/json",
+      ...Object.fromEntries(responseHeaders),
     },
     status: response.status,
   });

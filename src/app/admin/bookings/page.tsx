@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import Image from "next/image";
 import {
   IconSearch,
   IconDownload,
@@ -12,6 +13,7 @@ import {
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { BookingDetailDrawer } from "@/components/admin/booking-detail-drawer";
 import { cn } from "@/lib/cn";
+import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
 interface ApiBooking {
   id: string | number;
@@ -19,7 +21,7 @@ interface ApiBooking {
   user?: { name: string; email: string };
   name?: string;
   email?: string;
-  event?: { title: string };
+  event?: { title: string; imageUrl?: string | null; imageAlt?: string | null };
   tickets?: ApiBookingTicket[] | number;
   qty?: number;
   total?: number;
@@ -42,6 +44,7 @@ type BookingRow = {
   event: {
     title: string;
     thumbnail?: string;
+    imageAlt: string;
   };
   tickets: number;
   total: string;
@@ -82,6 +85,8 @@ export default function AdminBookingsPage() {
           },
           event: {
             title: item.event?.title || "Puncak Travellers event",
+            thumbnail: item.event?.imageUrl || "",
+            imageAlt: item.event?.imageAlt || item.event?.title || "Puncak Travellers event",
           },
           tickets: getBookingTicketCount(item),
           total: item.total ? `Rp ${(item.total / 1000).toFixed(0)}K` : "Rp 0",
@@ -348,7 +353,20 @@ export default function AdminBookingsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-[#F1F5F9] rounded-lg border border-[#E2E8F0] flex-shrink-0" />
+                      <div className="relative w-10 h-10 bg-[#F1F5F9] rounded-lg border border-[#E2E8F0] flex-shrink-0 overflow-hidden flex items-center justify-center font-bold text-xs text-slate-400 uppercase">
+                        {b.event.thumbnail ? (
+                          <Image
+                            src={b.event.thumbnail}
+                            alt={b.event.imageAlt}
+                            fill
+                            sizes="40px"
+                            className="object-cover"
+                            unoptimized={shouldBypassImageOptimization(b.event.thumbnail)}
+                          />
+                        ) : (
+                          b.event.title.slice(0, 2)
+                        )}
+                      </div>
                       <span className="text-[13.5px] font-medium text-[#0f172a] truncate max-w-[200px]">
                         {b.event.title}
                       </span>

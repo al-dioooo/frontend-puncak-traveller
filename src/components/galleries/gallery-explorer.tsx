@@ -24,10 +24,11 @@ const yearOptions: Array<{ value: GalleryYear; label: string }> = [
 ];
 
 type GalleryExplorerProps = {
+  error?: string;
   galleryItems: GalleryItem[];
 };
 
-export function GalleryExplorer({ galleryItems }: GalleryExplorerProps) {
+export function GalleryExplorer({ error = "", galleryItems }: GalleryExplorerProps) {
   const [category, setCategory] = useState<GalleryCategory>("all");
   const [year, setYear] = useState<GalleryYear>("all");
 
@@ -83,7 +84,12 @@ export function GalleryExplorer({ galleryItems }: GalleryExplorerProps) {
           </div>
         </div>
 
-        {visibleItems.length > 0 ? (
+        {error ? (
+          <div className="empty-panel js-reveal">
+            <h2>Gallery could not be loaded</h2>
+            <p>{error}</p>
+          </div>
+        ) : visibleItems.length > 0 ? (
           <div className="gallery-page-grid">
             {visibleItems.map((item, index) => (
               <GalleryCard key={item.id} item={item} featured={index === 0} />
@@ -91,14 +97,14 @@ export function GalleryExplorer({ galleryItems }: GalleryExplorerProps) {
           </div>
         ) : (
           <div className="empty-panel js-reveal">
-            <h2>No photos in this view</h2>
-            <p>Try another category or year.</p>
+            <h2>{galleryItems.length === 0 ? "No gallery photos yet" : "No photos in this view"}</h2>
+            <p>
+              {galleryItems.length === 0
+                ? "Published community photos will appear here once the API has gallery records."
+                : "Try another category or year."}
+            </p>
           </div>
         )}
-
-        <div className="load-more-row js-reveal">
-          <ActionButton variant="outline">Load more photos</ActionButton>
-        </div>
       </div>
     </section>
   );
