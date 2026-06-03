@@ -22,12 +22,16 @@ interface ApiBooking {
   name?: string;
   email?: string;
   event?: { title: string };
-  tickets?: unknown[] | number;
+  tickets?: ApiBookingTicket[] | number;
   qty?: number;
   total?: number;
   status?: string;
   date?: string;
 }
+
+type ApiBookingTicket = {
+  quantity?: number | string | null;
+};
 
 type BookingRow = {
   reference: string;
@@ -143,7 +147,7 @@ export default function AdminBookingsPage() {
             event: {
               title: item.event?.title || "Puncak Trail Run 2026",
             },
-            tickets: item.qty || (Array.isArray(item.tickets) ? item.tickets.reduce((sum, ticket) => sum + (Number((ticket as { quantity?: number }).quantity) || 0), 0) : 1),
+            tickets: getBookingTicketCount(item),
             total: item.total ? `Rp ${(item.total / 1000).toFixed(0)}K` : "Rp 150K",
             status: displayBookingStatus(item.status),
             date: formatBookingDate(item.date),
@@ -469,6 +473,26 @@ function displayBookingStatus(status?: string): BookingRow["status"] {
   }
 
   return "Paid";
+}
+
+function getBookingTicketCount(item: ApiBooking): number {
+  if (typeof item.qty === "number" && item.qty > 0) {
+    return item.qty;
+  }
+
+  if (typeof item.tickets === "number" && item.tickets > 0) {
+    return item.tickets;
+  }
+
+  if (Array.isArray(item.tickets)) {
+    const ticketCount = item.tickets.reduce<number>((sum, ticket) => {
+      return sum + (Number(ticket.quantity) || 0);
+    }, 0);
+
+    return ticketCount || 1;
+  }
+
+  return 1;
 }
 
 function formatBookingDate(value?: string): string {

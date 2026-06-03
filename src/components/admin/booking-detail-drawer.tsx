@@ -121,10 +121,11 @@ export function BookingDetailDrawer({
     }
 
     let active = true;
+    const currentBookingRef = bookingRef;
 
     async function loadDetails() {
       try {
-        const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(bookingRef)}`, {
+        const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(currentBookingRef)}`, {
           cache: "no-store",
           headers: { Accept: "application/json" },
         });
@@ -146,24 +147,24 @@ export function BookingDetailDrawer({
 
       if (!active) return;
 
-      if (fallbackDrawerDetails[bookingRef]) {
-        setDetails(JSON.parse(JSON.stringify(fallbackDrawerDetails[bookingRef])));
+      if (fallbackDrawerDetails[currentBookingRef]) {
+        setDetails(JSON.parse(JSON.stringify(fallbackDrawerDetails[currentBookingRef])));
         return;
       }
 
       // Create dynamically if not exists
       setDetails({
-        reference: bookingRef,
-        status: bookingRef.includes("PFR") ? "Pending" : bookingRef.includes("PTR-26-9D") ? "Cancelled" : bookingRef.includes("PHM") ? "Refunded" : "Paid",
+        reference: currentBookingRef,
+        status: currentBookingRef.includes("PFR") ? "Pending" : currentBookingRef.includes("PTR-26-9D") ? "Cancelled" : currentBookingRef.includes("PHM") ? "Refunded" : "Paid",
         date: "01 Jun 2026",
         member: {
-          name: bookingRef.includes("PHC") ? "Maya Sari" : bookingRef.includes("PFR") ? "Budi Hartono" : bookingRef.includes("PYG") ? "Indah Permata" : "Rian Maulana",
+          name: currentBookingRef.includes("PHC") ? "Maya Sari" : currentBookingRef.includes("PFR") ? "Budi Hartono" : currentBookingRef.includes("PYG") ? "Indah Permata" : "Rian Maulana",
           email: "member@email.com",
           phone: "+62 813 9876 5432",
-          community: bookingRef.includes("PHC") ? "Puncak Campers" : "Puncak Runners",
+          community: currentBookingRef.includes("PHC") ? "Puncak Campers" : "Puncak Runners",
         },
         event: {
-          title: bookingRef.includes("PHC") ? "Highland Camp & Bonfire" : bookingRef.includes("PFR") ? "Forest Fun Run 10K" : bookingRef.includes("PYG") ? "Mindful Mountain Yoga" : "Puncak Trail Run 2026",
+          title: currentBookingRef.includes("PHC") ? "Highland Camp & Bonfire" : currentBookingRef.includes("PFR") ? "Forest Fun Run 10K" : currentBookingRef.includes("PYG") ? "Mindful Mountain Yoga" : "Puncak Trail Run 2026",
           date: "14 Jun 2026",
           location: "Bogor, Indonesia",
         },
