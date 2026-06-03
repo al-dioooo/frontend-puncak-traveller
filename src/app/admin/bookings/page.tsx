@@ -25,6 +25,7 @@ import {
   displayBookingStatus,
   downloadBookingTicket,
   mapApiBookingRow,
+  refreshBookingPaymentStatus,
   refundBooking,
   resendBookingReceipt,
   updateBookingPaymentStatus,
@@ -164,6 +165,20 @@ export default function AdminBookingsPage() {
       showToast("Payment status updated.");
     } catch (statusError) {
       showToast(statusError instanceof Error ? statusError.message : "Unable to update payment status.");
+    }
+  }
+
+  async function refreshPaymentStatus(reference: string) {
+    setRowActionLoading(`${reference}:refresh`);
+
+    try {
+      const payload = await refreshBookingPaymentStatus(reference);
+      handleStatusChange(reference, displayBookingStatus(payload.paymentStatus ?? payload.status));
+      showToast("Payment status refreshed from Midtrans.");
+    } catch (refreshError) {
+      showToast(refreshError instanceof Error ? refreshError.message : "Unable to refresh payment status.");
+    } finally {
+      setRowActionLoading(null);
     }
   }
 
@@ -399,26 +414,36 @@ export default function AdminBookingsPage() {
                     {b.total}
                   </td>
                   <td className="px-6 py-4">
-                    <select
-                      value={b.status}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updatePaymentStatus(b.reference, event.target.value as AdminBookingStatus)}
-                      className={cn(
-                        "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
-                        b.status === "Paid"
-                          ? "bg-teal-50 text-teal-700"
-                          : b.status === "Pending"
-                          ? "bg-amber-50 text-amber-700"
-                          : b.status === "Cancelled"
-                          ? "bg-red-50 text-red-700"
-                          : "bg-slate-100 text-slate-700",
-                      )}
-                    >
-                      <option>Paid</option>
-                      <option>Pending</option>
-                      <option>Cancelled</option>
-                      <option>Refunded</option>
-                    </select>
+                    <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
+                      <select
+                        value={b.status}
+                        onChange={(event) => updatePaymentStatus(b.reference, event.target.value as AdminBookingStatus)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
+                          b.status === "Paid"
+                            ? "bg-teal-50 text-teal-700"
+                            : b.status === "Pending"
+                            ? "bg-amber-50 text-amber-700"
+                            : b.status === "Cancelled"
+                            ? "bg-red-50 text-red-700"
+                            : "bg-slate-100 text-slate-700",
+                        )}
+                      >
+                        <option>Paid</option>
+                        <option>Pending</option>
+                        <option>Cancelled</option>
+                        <option>Refunded</option>
+                      </select>
+                      <button
+                        type="button"
+                        aria-label={`Refresh payment status for booking ${b.reference}`}
+                        disabled={rowActionLoading !== null}
+                        onClick={() => refreshPaymentStatus(b.reference)}
+                        className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 hover:text-[#0F172A] transition disabled:opacity-45 disabled:cursor-not-allowed"
+                      >
+                        <IconRefresh className={cn("w-3.5 h-3.5", rowActionLoading === `${b.reference}:refresh` && "animate-spin")} />
+                      </button>
+                    </div>
                   </td>
                   <td className="px-6 py-4 text-[13.5px] text-[#647589] whitespace-nowrap">
                     {b.date}

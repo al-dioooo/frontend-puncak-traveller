@@ -80,6 +80,7 @@ export type AccountBooking = {
   date: string;
   location: string;
   reference: string;
+  paymentStatus?: string;
   ticketLabel: string;
   primaryAction: string;
   primaryHref?: string;

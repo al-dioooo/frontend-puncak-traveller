@@ -92,6 +92,7 @@ type BookingContextValue = {
   setSignedIn: (signedIn: boolean) => void;
   changeQuantity: (ticketId: string, delta: number) => void;
   confirmBooking: () => Promise<BookingConfirmation>;
+  resetConfirmedBooking: () => void;
 };
 
 const BookingContext = createContext<BookingContextValue | null>(null);
@@ -257,10 +258,17 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
 
   const confirmBooking = useCallback(async () => {
     if (confirmationReference && snapToken) {
-      return {
-        reference: confirmationReference,
-        snapToken,
-      };
+      const cachedBookingStatus = await fetchBookingPaymentStatus(confirmationReference);
+
+      if (!cachedBookingStatus || cachedBookingStatus.paymentStatus === "pending") {
+        return {
+          reference: confirmationReference,
+          snapToken,
+        };
+      }
+
+      setConfirmationReference("");
+      setSnapToken("");
     }
 
     const auth = currentUser ?? readStoredAuth();
@@ -278,6 +286,12 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       )
       : undefined;
 
+    const nextIdempotencyKey = confirmationReference && snapToken ? crypto.randomUUID() : idempotencyKey;
+
+    if (nextIdempotencyKey !== idempotencyKey) {
+      setIdempotencyKey(nextIdempotencyKey);
+    }
+
     const response = await fetch("/api/puncak/bookings", {
       body: JSON.stringify({
         ...(attendees ? { attendees } : {}),
@@ -291,7 +305,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
-        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
+        ...(nextIdempotencyKey ? { "Idempotency-Key": nextIdempotencyKey } : {}),
       },
       method: "POST",
     });
@@ -343,6 +357,12 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     termsAccepted,
   ]);
 
+  const resetConfirmedBooking = useCallback(() => {
+    setConfirmationReference("");
+    setSnapToken("");
+    setIdempotencyKey(crypto.randomUUID());
+  }, []);
+
   const value = useMemo<BookingContextValue>(
     () => ({
       changeQuantity,
@@ -350,6 +370,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       confirmationReference,
       event,
       quantities,
+      resetConfirmedBooking,
       selectedCount,
       selectedRows,
       setSignedIn: updateSignedIn,
@@ -367,6 +388,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       confirmationReference,
       event,
       quantities,
+      resetConfirmedBooking,
       selectedCount,
       selectedRows,
       signedIn,
@@ -480,6 +502,7 @@ export function BookingConfirmStep() {
     userDisplayName,
     setTermsAccepted,
     confirmBooking,
+    resetConfirmedBooking,
   } = useBookingFlow();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -495,6 +518,7 @@ export function BookingConfirmStep() {
 
       window.snap?.pay(booking.snapToken, {
         onSuccess: () => {
+          resetConfirmedBooking();
           router.push(`${event.bookingHref}/success?payment=success&reference=${encodeURIComponent(booking.reference)}`);
         },
         onPending: () => {
@@ -650,7 +674,7 @@ export function BookingSuccessStep() {
           </div>
           <div className="success-reference">
             <span>Booking reference</span>
-            <strong>{confirmationReference}</strong>
+            <strong>{reference}</strong>
           </div>
           <p>
             {selectedCount} tickets{ticketSummary ? ` - ${ticketSummary}` : ""}
@@ -670,6 +694,25 @@ export function BookingSuccessStep() {
       </RequireSelection>
     </CheckoutFrame>
   );
+}
+
+async function fetchBookingPaymentStatus(reference: string): Promise<BookingStatusPayload | null> {
+  try {
+    const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}`, {
+      cache: "no-store",
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as { data?: BookingStatusPayload };
+
+    return payload.data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function loadMidtransSnapScript(): Promise<void> {

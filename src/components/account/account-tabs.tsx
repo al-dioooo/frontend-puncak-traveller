@@ -15,9 +15,15 @@ const tabs: Array<{ value: AccountTab; label: string }> = [
 
 type AccountTabsProps = {
   bookings: AccountBooking[];
+  refreshingReference?: string;
+  onRefreshPaymentStatus?: (reference: string) => void;
 };
 
-export function AccountTabs({ bookings }: AccountTabsProps) {
+export function AccountTabs({
+  bookings,
+  refreshingReference,
+  onRefreshPaymentStatus,
+}: AccountTabsProps) {
   const [activeTab, setActiveTab] = useState<AccountTab>("upcoming");
 
   const visibleBookings = useMemo(
@@ -62,7 +68,12 @@ export function AccountTabs({ bookings }: AccountTabsProps) {
         <div className="account-booking-list">
           {visibleBookings.length > 0 ? (
             visibleBookings.map((booking) => (
-              <AccountBookingCard key={booking.id} booking={booking} />
+              <AccountBookingCard
+                key={booking.id}
+                booking={booking}
+                refreshing={refreshingReference === booking.reference}
+                onRefreshPaymentStatus={onRefreshPaymentStatus}
+              />
             ))
           ) : (
             <div className="empty-panel">

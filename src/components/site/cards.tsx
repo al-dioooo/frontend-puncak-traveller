@@ -4,6 +4,7 @@ import {
   IconArrowUpRight,
   IconCalendarEvent,
   IconMapPin,
+  IconRefresh,
   IconTicket,
 } from "@tabler/icons-react";
 import { Badge, MetaItem } from "@/components/landing/badge";
@@ -134,15 +135,28 @@ export function FeatureCard({ title, description, index }: FeatureCardProps) {
 
 type AccountBookingCardProps = {
   booking: AccountBooking;
+  refreshing?: boolean;
+  onRefreshPaymentStatus?: (reference: string) => void;
 };
 
-export function AccountBookingCard({ booking }: AccountBookingCardProps) {
+export function AccountBookingCard({
+  booking,
+  refreshing = false,
+  onRefreshPaymentStatus,
+}: AccountBookingCardProps) {
+  const canRefreshPaymentStatus = Boolean(onRefreshPaymentStatus && booking.status !== "saved");
+  const paymentLabel = booking.paymentStatus
+    ? `Payment: ${booking.paymentStatus[0]?.toUpperCase()}${booking.paymentStatus.slice(1)}`
+    : null;
+  const paymentTone = booking.paymentStatus === "paid" ? "teal" : booking.paymentStatus === "pending" ? "orange" : "navy";
+
   return (
     <article className="account-booking-card motion-card js-card">
       <div className="account-booking-head">
         <Badge tone={booking.status === "upcoming" ? "orange" : booking.status === "saved" ? "teal" : "navy"}>
           {booking.badge}
         </Badge>
+        {paymentLabel ? <Badge tone={paymentTone}>{paymentLabel}</Badge> : null}
         <span>{booking.reference}</span>
       </div>
       <h2>{booking.title}</h2>
@@ -159,6 +173,17 @@ export function AccountBookingCard({ booking }: AccountBookingCardProps) {
           <ButtonLink href={booking.secondaryHref ?? "/account"} size="sm" variant="outline">
             {booking.secondaryAction}
           </ButtonLink>
+        ) : null}
+        {canRefreshPaymentStatus ? (
+          <button
+            type="button"
+            className="btn btn-outline btn-sm motion-control"
+            disabled={refreshing}
+            onClick={() => onRefreshPaymentStatus?.(booking.reference)}
+          >
+            <IconRefresh aria-hidden size={16} />
+            <span>{refreshing ? "Refreshing..." : "Refresh payment"}</span>
+          </button>
         ) : null}
       </div>
     </article>

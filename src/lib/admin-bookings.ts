@@ -206,6 +206,15 @@ export async function updateBookingPaymentStatus(
   return payload.data;
 }
 
+export async function refreshBookingPaymentStatus(reference: string): Promise<BookingActionResponse> {
+  const payload = await adminBookingRequest<ApiEnvelope<BookingActionResponse>>(
+    `/api/puncak/bookings/${encodeURIComponent(reference)}/payment-status/sync`,
+    { method: "POST" },
+  );
+
+  return payload.data;
+}
+
 export async function downloadBookingTicket(reference: string): Promise<void> {
   const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}/ticket`, {
     cache: "no-store",

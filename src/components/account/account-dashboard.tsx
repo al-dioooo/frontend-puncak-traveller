@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { IconEdit } from "@tabler/icons-react";
 import { LoginPanel } from "@/components/auth/login-panel";
 import { AccountTabs } from "@/components/account/account-tabs";
@@ -56,7 +56,9 @@ export function AccountDashboard() {
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [bookings, setBookings] = useState<AccountBooking[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshingReference, setRefreshingReference] = useState("");
   const [message, setMessage] = useState("");
+  const [refreshMessage, setRefreshMessage] = useState("");
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -141,6 +143,56 @@ export function AccountDashboard() {
     };
   }, [sessionReady]);
 
+  const reloadBookings = useCallback(async () => {
+    const [bookingsResponse, savedResponse] = await Promise.all([
+      fetch("/api/puncak/bookings?status=all", {
+        cache: "no-store",
+        headers: authHeaders(),
+      }),
+      fetch("/api/puncak/me/saved-events", {
+        cache: "no-store",
+        headers: authHeaders(),
+      }),
+    ]);
+
+    const bookingPayload = bookingsResponse.ok
+      ? ((await bookingsResponse.json()) as ApiEnvelope<AccountBooking[]>)
+      : { data: [] };
+    const savedPayload = savedResponse.ok
+      ? ((await savedResponse.json()) as ApiEnvelope<AccountBooking[]>)
+      : { data: [] };
+
+    setBookings([...bookingPayload.data, ...savedPayload.data]);
+  }, []);
+
+  const refreshBookingPaymentStatus = useCallback(
+    async (reference: string) => {
+      setRefreshingReference(reference);
+      setRefreshMessage("");
+
+      try {
+        const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}/payment-status/sync`, {
+          cache: "no-store",
+          headers: authHeaders(),
+          method: "POST",
+        });
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { message?: string };
+          throw new Error(payload.message ?? "Unable to refresh payment status.");
+        }
+
+        await reloadBookings();
+        setRefreshMessage("Payment status refreshed.");
+      } catch (error) {
+        setRefreshMessage(error instanceof Error ? error.message : "Unable to refresh payment status.");
+      } finally {
+        setRefreshingReference("");
+      }
+    },
+    [reloadBookings],
+  );
+
   const activeProfile = profile ?? fallbackProfile;
   const initializing = !sessionReady;
   const heroLead = useMemo(
@@ -205,7 +257,20 @@ export function AccountDashboard() {
           </div>
         </section>
       ) : (
-        <AccountTabs bookings={bookings} />
+        <>
+          {refreshMessage ? (
+            <section className="section" aria-live="polite">
+              <div className="wrap">
+                <p className="form-status">{refreshMessage}</p>
+              </div>
+            </section>
+          ) : null}
+          <AccountTabs
+            bookings={bookings}
+            refreshingReference={refreshingReference}
+            onRefreshPaymentStatus={refreshBookingPaymentStatus}
+          />
+        </>
       )}
     </>
   );
