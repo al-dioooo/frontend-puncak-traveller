@@ -130,9 +130,9 @@ export default function AdminPlacesPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/places/new"
-            className="flex items-center gap-2 bg-[#F37820] text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition"
+            className="flex items-center gap-2 bg-[#F37820] !text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition"
           >
-            <IconPlus className="w-4 h-4" />
+            <IconPlus className="w-4 h-4 text-white" />
             <span>New place</span>
           </Link>
         </div>

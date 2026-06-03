@@ -10,7 +10,6 @@ import {
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
-  IconUserCheck,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { cn } from "@/lib/cn";
@@ -135,9 +134,9 @@ export default function AdminMembersPage() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/members/new"
-            className="flex items-center gap-2 bg-[#F37820] text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition"
+            className="flex items-center gap-2 bg-[#F37820] !text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition"
           >
-            <IconPlus className="w-4 h-4" />
+            <IconPlus className="w-4 h-4 text-white" />
             <span>New member</span>
           </Link>
         </div>
