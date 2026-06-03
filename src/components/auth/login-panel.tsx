@@ -22,7 +22,7 @@ export function LoginPanel({
   returnTo = "/account",
   onAuthenticated,
   compact = false,
-  isBooking = false
+  isBooking = false,
 }: LoginPanelProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -131,7 +131,6 @@ export function LoginPanel({
             />
             <span>Remember me</span>
           </label>
-          <a href="/forgot-password">Forgot password?</a>
         </div>
         <ActionButton type="submit" icon={IconLock} disabled={pending}>
           {pending ? "Signing in..." : "Log in"}

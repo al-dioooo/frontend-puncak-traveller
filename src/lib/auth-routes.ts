@@ -1,10 +1,8 @@
 export const localAuthRoutes = {
   google: "/api/auth/google",
-  forgotPassword: "/api/auth/forgot-password",
   login: "/api/auth/login",
   logout: "/api/auth/logout",
   register: "/api/auth/register",
-  resetPassword: "/api/auth/reset-password",
 } as const;
 
 export type BasicLoginPayload = {
