@@ -110,22 +110,22 @@ export function AdminLayout({ children, activeTab, title }: AdminLayoutProps) {
   return (
     <div className="min-h-screen flex bg-[#F8F7F5] font-sans antialiased text-[#0F172A]">
       {/* Sidebar Rail */}
-      <aside className="w-64 bg-[#0F172A] text-white flex flex-col flex-shrink-0 sticky top-0 h-screen select-none z-30">
+      <aside className="w-64 bg-[#FFFDF9] text-[#0F172A] border-r border-[#E8DED2] shadow-[14px_0_36px_rgb(120_90_54_/_0.06)] flex flex-col flex-shrink-0 sticky top-0 h-screen select-none z-30">
         {/* Brand Row */}
         <div className="flex items-center gap-3 px-6 pt-7 pb-5">
           <Link href="/" className="transition hover:opacity-90">
-            <Logo className="h-6 w-auto filter invert brightness-200" />
+            <Logo className="h-6 w-auto" />
           </Link>
-          <span className="text-[11px] font-bold uppercase tracking-wider bg-white/15 px-2 py-0.5 rounded text-white/90">
+          <span className="text-[11px] font-bold uppercase tracking-wider bg-[#F37820]/10 px-2 py-0.5 rounded text-[#C24B00] ring-1 ring-[#F37820]/20">
             Admin
           </span>
         </div>
 
         {/* Scrollable Navigation */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-6 scrollbar-thin scrollbar-thumb-[#D8C8B6] scrollbar-track-transparent">
           {navigationGroups.map((group) => (
             <div key={group.label} className="space-y-1">
-              <div className="text-[11px] font-bold uppercase tracking-widest text-[#647589] px-3 mb-2">
+              <div className="text-[11px] font-bold uppercase tracking-widest text-[#8A735C] px-3 mb-2">
                 {group.label}
               </div>
               <nav className="space-y-0.5" aria-label={`${group.label} menu`}>
@@ -143,7 +143,7 @@ export function AdminLayout({ children, activeTab, title }: AdminLayoutProps) {
                         <item.icon className="w-4 h-4 flex-shrink-0" />
                         <span>{item.label}</span>
                         {item.count !== null && (
-                          <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/5 text-[#94A3B8]">
+                          <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#F1E8DD] text-[#8A735C]">
                             {item.count}
                           </span>
                         )}
@@ -158,16 +158,21 @@ export function AdminLayout({ children, activeTab, title }: AdminLayoutProps) {
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13.5px] font-medium transition duration-150 relative",
                         isActive
-                          ? "bg-white/8 text-white font-semibold"
-                          : "text-[#94A3B8] hover:bg-white/4 hover:text-white"
+                          ? "bg-[#F37820]/12 text-[#0F172A] font-semibold shadow-[inset_3px_0_0_#F37820]"
+                          : "text-[#647589] hover:bg-[#F1E8DD]/70 hover:text-[#0F172A]"
                       )}
                     >
-                      <item.icon className="w-4 h-4 flex-shrink-0" />
+                      <item.icon
+                        className={cn(
+                          "w-4 h-4 flex-shrink-0",
+                          isActive ? "text-[#F37820]" : "text-[#8A735C]"
+                        )}
+                      />
                       <span>{item.label}</span>
                       {item.count !== null && (
                         <span className={cn(
                           "ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full",
-                          isActive ? "bg-white/15 text-white" : "bg-white/5 text-[#94A3B8]"
+                          isActive ? "bg-[#F37820]/15 text-[#C24B00]" : "bg-[#F1E8DD] text-[#8A735C]"
                         )}>
                           {item.count}
                         </span>
@@ -181,23 +186,23 @@ export function AdminLayout({ children, activeTab, title }: AdminLayoutProps) {
         </div>
 
         {/* User Rail Section at Bottom */}
-        <div className="p-4 border-t border-white/8 flex items-center justify-between relative">
+        <div className="p-4 border-t border-[#E8DED2] bg-[#FBF8F4] flex items-center justify-between relative">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center font-bold text-slate-900 overflow-hidden text-sm uppercase">
+            <div className="w-9 h-9 rounded-full bg-[#F37820] flex items-center justify-center font-bold text-white overflow-hidden text-sm uppercase shadow-sm shadow-orange-500/25">
               {profile?.name?.slice(0, 2) || "SD"}
             </div>
             <div className="overflow-hidden">
-              <div className="text-[13px] font-semibold text-white leading-tight truncate">
+              <div className="text-[13px] font-semibold text-[#0F172A] leading-tight truncate">
                 {profile?.name || "Sari Dewi"}
               </div>
-              <div className="text-[11px] text-[#647589] leading-tight truncate">
+              <div className="text-[11px] text-[#8A735C] leading-tight truncate">
                 Administrator
               </div>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="p-1.5 rounded-lg text-[#647589] hover:text-red-400 hover:bg-white/5 transition"
+            className="p-1.5 rounded-lg text-[#8A735C] hover:text-red-600 hover:bg-red-50 transition"
             title="Log out"
           >
             <IconLogout className="w-4.5 h-4.5" />
