@@ -1,17 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { IconEdit } from "@tabler/icons-react";
 import { LoginPanel } from "@/components/auth/login-panel";
 import { AccountTabs } from "@/components/account/account-tabs";
 import { PageHero } from "@/components/site/page-hero";
 import { ActionButton } from "@/components/ui/action-button";
-import {
-  getStoredAuthToken,
-  readStoredAuth,
-  writeStoredAuth,
-} from "@/lib/client-auth";
+import { writeStoredAuth } from "@/lib/client-auth";
 import type { AccountBooking } from "@/lib/reference-data";
 
 type AccountProfile = {
@@ -20,6 +15,7 @@ type AccountProfile = {
   location?: string;
   memberSince: string;
   crew?: string;
+  role?: string;
   stats: Array<{ value: string; label: string }>;
 };
 
@@ -29,6 +25,7 @@ type ApiUser = {
   location?: string | null;
   memberSince?: string | null;
   crew?: string | null;
+  role?: string | null;
   stats?: {
     eventsBooked: number;
     completed: number;
@@ -54,8 +51,8 @@ const fallbackProfile: AccountProfile = {
 };
 
 export function AccountDashboard() {
-  const router = useRouter();
-  const [token, setToken] = useState<string | null | undefined>(undefined);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [signedOut, setSignedOut] = useState(false);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [bookings, setBookings] = useState<AccountBooking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,30 +60,16 @@ export function AccountDashboard() {
 
   useEffect(() => {
     queueMicrotask(() => {
-      const params = new URLSearchParams(window.location.search);
-      const callbackToken = params.get("auth_token");
-
-      if (callbackToken) {
-        writeStoredAuth({
-          name: readStoredAuth()?.name ?? "Puncak Traveller",
-          token: callbackToken,
-        });
-        setToken(callbackToken);
-        router.replace("/account");
-        return;
-      }
-
-      setToken(getStoredAuthToken());
+      setSessionReady(true);
     });
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    if (!token) {
+    if (!sessionReady) {
       return;
     }
 
     let active = true;
-    const accountToken = token;
 
     async function loadAccount() {
       setLoading(true);
@@ -96,15 +79,15 @@ export function AccountDashboard() {
         const [profileResponse, bookingsResponse, savedResponse] = await Promise.all([
           fetch("/api/puncak/me", {
             cache: "no-store",
-            headers: authHeaders(accountToken),
+            headers: authHeaders(),
           }),
           fetch("/api/puncak/bookings?status=all", {
             cache: "no-store",
-            headers: authHeaders(accountToken),
+            headers: authHeaders(),
           }),
           fetch("/api/puncak/me/saved-events", {
             cache: "no-store",
-            headers: authHeaders(accountToken),
+            headers: authHeaders(),
           }),
         ]);
 
@@ -126,13 +109,15 @@ export function AccountDashboard() {
         writeStoredAuth({
           email: profilePayload.data.email,
           name: profilePayload.data.name,
-          token: accountToken,
+          role: profilePayload.data.role ?? undefined,
         });
+        setSignedOut(false);
         setBookings([...bookingPayload.data, ...savedPayload.data]);
       } catch (error) {
         if (!active) return;
         setProfile(null);
         setBookings([]);
+        setSignedOut(true);
         setMessage(
           error instanceof Error
             ? error.message
@@ -154,10 +139,10 @@ export function AccountDashboard() {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, [sessionReady]);
 
   const activeProfile = profile ?? fallbackProfile;
-  const initializing = token === undefined;
+  const initializing = !sessionReady;
   const heroLead = useMemo(
     () =>
       `${activeProfile.location ?? "Indonesia"} - Member since ${activeProfile.memberSince} - ${
@@ -166,7 +151,7 @@ export function AccountDashboard() {
     [activeProfile],
   );
 
-  if (!initializing && !loading && !token) {
+  if (!initializing && !loading && signedOut) {
     return (
       <>
         <PageHero
@@ -226,10 +211,9 @@ export function AccountDashboard() {
   );
 }
 
-function authHeaders(token: string): HeadersInit {
+function authHeaders(): HeadersInit {
   return {
     Accept: "application/json",
-    Authorization: `Bearer ${token}`,
   };
 }
 
@@ -240,6 +224,7 @@ function mapProfile(user: ApiUser): AccountProfile {
     location: user.location ?? "Indonesia",
     memberSince: user.memberSince ?? "2026",
     crew: user.crew ?? "Puncak Travellers",
+    role: user.role ?? undefined,
     stats: [
       { value: String(user.stats?.eventsBooked ?? 0), label: "Events booked" },
       { value: String(user.stats?.completed ?? 0), label: "Completed" },

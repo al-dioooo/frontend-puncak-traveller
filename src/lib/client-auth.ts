@@ -3,7 +3,7 @@ export const authStorageKey = "puncak.auth";
 export type StoredAuth = {
   email?: string;
   name?: string;
-  token?: string;
+  role?: string;
   signedInAt?: string;
 };
 
@@ -26,7 +26,7 @@ export function readStoredAuth(): StoredAuth | null {
 }
 
 export function getStoredAuthToken(): string | null {
-  return readStoredAuth()?.token ?? null;
+  return null;
 }
 
 export function writeStoredAuth(auth: StoredAuth) {

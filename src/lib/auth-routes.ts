@@ -1,6 +1,7 @@
 export const localAuthRoutes = {
   google: "/api/auth/google",
   login: "/api/auth/login",
+  logout: "/api/auth/logout",
 } as const;
 
 export type BasicLoginPayload = {
@@ -13,10 +14,10 @@ export type AuthUser = {
   id?: string | number;
   name: string;
   email: string;
+  role?: string;
 };
 
 export type LoginResult = {
   user?: AuthUser;
-  token?: string;
   message?: string;
 };

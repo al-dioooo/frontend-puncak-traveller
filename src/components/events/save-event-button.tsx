@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { IconBookmark, IconBookmarkFilled } from "@tabler/icons-react";
 import { ActionButton } from "@/components/ui/action-button";
-import { getStoredAuthToken } from "@/lib/client-auth";
 
 type SaveEventButtonProps = {
   eventSlug: string;
@@ -23,9 +22,6 @@ export function SaveEventButton({ eventSlug }: SaveEventButtonProps) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const token = getStoredAuthToken();
-    if (!token) return;
-
     let active = true;
 
     async function loadSavedState() {
@@ -34,7 +30,6 @@ export function SaveEventButton({ eventSlug }: SaveEventButtonProps) {
           cache: "no-store",
           headers: {
             Accept: "application/json",
-            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -60,12 +55,6 @@ export function SaveEventButton({ eventSlug }: SaveEventButtonProps) {
   }, [eventSlug]);
 
   async function toggleSaved() {
-    const token = getStoredAuthToken();
-    if (!token) {
-      window.location.href = `/login?return_to=${encodeURIComponent(window.location.pathname)}`;
-      return;
-    }
-
     setPending(true);
     setMessage("");
 
@@ -78,12 +67,16 @@ export function SaveEventButton({ eventSlug }: SaveEventButtonProps) {
           body: saved ? undefined : JSON.stringify({ eventSlug }),
           headers: {
             Accept: "application/json",
-            Authorization: `Bearer ${token}`,
             ...(saved ? {} : { "Content-Type": "application/json" }),
           },
           method: saved ? "DELETE" : "POST",
         },
       );
+
+      if (response.status === 401) {
+        window.location.href = `/login?return_to=${encodeURIComponent(window.location.pathname)}`;
+        return;
+      }
 
       if (!response.ok) {
         throw new Error(saved ? "Unable to remove saved event." : "Unable to save event.");

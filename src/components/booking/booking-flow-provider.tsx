@@ -27,7 +27,12 @@ import {
   formatRupiah,
   type EventDetail,
 } from "@/lib/reference-data";
-import { readStoredAuth, writeStoredAuth } from "@/lib/client-auth";
+import {
+  authStorageKey,
+  readStoredAuth,
+  writeStoredAuth,
+  type StoredAuth,
+} from "@/lib/client-auth";
 
 type Quantities = Record<string, number>;
 
@@ -46,6 +51,7 @@ type BookingContextValue = {
   confirmationReference: string;
   termsAccepted: boolean;
   signedIn: boolean;
+  userDisplayName: string;
   setTermsAccepted: (accepted: boolean) => void;
   setSignedIn: (signedIn: boolean) => void;
   changeQuantity: (ticketId: string, delta: number) => void;
@@ -66,6 +72,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState<StoredAuth | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -74,18 +81,9 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     queueMicrotask(() => {
       if (!active) return;
 
-      const params = new URLSearchParams(window.location.search);
-      const callbackToken = params.get("auth_token");
       const rawBooking = window.localStorage.getItem(storageKey);
-      const rawAuth = window.localStorage.getItem("puncak.auth");
-
-      if (callbackToken) {
-        writeStoredAuth({
-          name: readStoredAuth()?.name ?? "Puncak Traveller",
-          token: callbackToken,
-        });
-        window.history.replaceState(null, "", window.location.pathname);
-      }
+      const hasStoredAuth = Boolean(window.localStorage.getItem(authStorageKey));
+      const storedAuth = hasStoredAuth ? readStoredAuth() : null;
 
       if (rawBooking) {
         try {
@@ -107,7 +105,8 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
         setIdempotencyKey(crypto.randomUUID());
       }
 
-      if (callbackToken || (rawAuth && readStoredAuth()?.token)) {
+      if (storedAuth) {
+        setCurrentUser(storedAuth);
         setSignedIn(true);
       }
 
@@ -118,6 +117,47 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       active = false;
     };
   }, [storageKey]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/puncak/me", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = await response.json();
+
+        if (active) {
+          const nextAuth = {
+            email: payload.data?.email,
+            name: payload.data?.name ?? "Puncak Traveller",
+            role: payload.data?.role,
+          };
+
+          writeStoredAuth(nextAuth);
+          setCurrentUser(nextAuth);
+          setSignedIn(true);
+        }
+      } catch {
+        if (active) {
+          setSignedIn(false);
+        }
+      }
+    }
+
+    checkSession();
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -152,6 +192,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
   const subtotal = selectedRows.reduce((sum, row) => sum + row.lineTotal, 0);
   const selectedCount = selectedRows.reduce((sum, row) => sum + row.quantity, 0);
   const total = selectedCount > 0 ? subtotal + bookingFee : 0;
+  const userDisplayName = currentUser?.name?.trim() || "Puncak Traveller";
 
   const changeQuantity = useCallback(
     (ticketId: string, delta: number) => {
@@ -169,24 +210,26 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     [event.tickets],
   );
 
+  const updateSignedIn = useCallback((nextSignedIn: boolean) => {
+    setSignedIn(nextSignedIn);
+    setCurrentUser(nextSignedIn ? readStoredAuth() : null);
+  }, []);
+
   const confirmBooking = useCallback(async () => {
     if (confirmationReference) {
       return confirmationReference;
     }
 
-    const auth = readStoredAuth();
-    if (!auth?.token) {
-      throw new Error("Sign in before confirming your booking.");
-    }
-
-    const attendees = auth.email
+    const auth = currentUser ?? readStoredAuth();
+    const attendeeName = auth?.name?.trim() || "Puncak Traveller";
+    const attendees = auth?.email
       ? selectedRows.flatMap((row) =>
           Array.from({ length: row.quantity }, (_, index) => ({
             email: auth.email,
             name:
               index === 0
-                ? auth.name ?? "Puncak Traveller"
-                : `${auth.name ?? "Puncak Traveller"} ${index + 1}`,
+                ? attendeeName
+                : `${attendeeName} ${index + 1}`,
             ticketTierId: row.id,
           })),
         )
@@ -204,7 +247,6 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       }),
       headers: {
         Accept: "application/json",
-        Authorization: `Bearer ${auth.token}`,
         "Content-Type": "application/json",
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
@@ -217,6 +259,10 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     };
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("Sign in before confirming your booking.");
+      }
+
       throw new Error(payload.message ?? "Unable to confirm this booking.");
     }
 
@@ -229,6 +275,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     return nextReference;
   }, [
     confirmationReference,
+    currentUser,
     event.slug,
     idempotencyKey,
     selectedRows,
@@ -244,12 +291,13 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       quantities,
       selectedCount,
       selectedRows,
-      setSignedIn,
+      setSignedIn: updateSignedIn,
       setTermsAccepted,
       signedIn,
       subtotal,
       termsAccepted,
       total,
+      userDisplayName,
     }),
     [
       changeQuantity,
@@ -263,6 +311,8 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       subtotal,
       termsAccepted,
       total,
+      updateSignedIn,
+      userDisplayName,
     ],
   );
 
@@ -363,6 +413,7 @@ export function BookingConfirmStep() {
     selectedRows,
     selectedCount,
     termsAccepted,
+    userDisplayName,
     setTermsAccepted,
     confirmBooking,
   } = useBookingFlow();
@@ -401,7 +452,7 @@ export function BookingConfirmStep() {
             {selectedRows.flatMap((row) =>
               Array.from({ length: row.quantity }, (_, index) => (
                 <div key={`${row.id}-${index}`} className="attendee-row">
-                  <span>{index === 0 && row.id === selectedRows[0]?.id ? "Alex Puncak" : `Traveller ${index + 1}`}</span>
+                  <span>{index === 0 && row.id === selectedRows[0]?.id ? userDisplayName : `Traveller ${index + 1}`}</span>
                   <small>{row.name}</small>
                 </div>
               )),
@@ -447,13 +498,19 @@ export function BookingConfirmStep() {
 }
 
 export function BookingSuccessStep() {
-  const { event, confirmationReference, selectedCount, selectedRows } = useBookingFlow();
+  const {
+    event,
+    confirmationReference,
+    selectedCount,
+    selectedRows,
+    userDisplayName,
+  } = useBookingFlow();
   const ticketSummary = selectedRows.map((row) => row.name.split(" ")[0]).join(" + ");
 
   return (
     <CheckoutFrame
       eyebrow="Booking confirmed"
-      title="You are in, Alex!"
+      title={`You are in, ${userDisplayName}!`}
       lead={`Your spot for ${event.title} is locked in. We emailed your tickets and added them to your account.`}
       hideSummary
     >

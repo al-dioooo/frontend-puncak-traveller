@@ -62,7 +62,7 @@ export function LoginPanel({
       writeStoredAuth({
         email,
         name: data.user?.name ?? "Puncak Traveller",
-        token: data.token,
+        role: data.user?.role,
       });
       onAuthenticated?.();
       router.push(getResolvedReturnTo(returnTo));

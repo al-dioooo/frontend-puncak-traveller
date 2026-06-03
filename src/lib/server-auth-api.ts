@@ -4,6 +4,7 @@ const DEFAULT_API_BASE_URL = "http://api-puncak-traveller.test";
 
 export const backendAuthEndpoints = {
   googleRedirect: "/api/v1/auth/google/redirect",
+  googleExchange: "/api/v1/auth/google/exchange",
   login: "/api/v1/auth/login",
   logout: "/api/v1/auth/logout",
   user: "/api/v1/auth/user",

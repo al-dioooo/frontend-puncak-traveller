@@ -128,6 +128,7 @@ export type AccountProfile = {
   memberSince: string;
   crew?: string;
   avatarUrl?: string;
+  role?: string;
   stats: Array<{ value: string; label: string }>;
 };
 
@@ -139,6 +140,7 @@ type ApiUser = {
   location?: string | null;
   memberSince: string;
   crew?: string | null;
+  role?: string | null;
   stats: {
     eventsBooked: number;
     completed: number;
@@ -498,6 +500,7 @@ function mapAccountProfile(user: ApiUser): AccountProfile {
     memberSince: user.memberSince,
     crew: user.crew ?? "Puncak Travellers",
     avatarUrl: user.avatarUrl ?? undefined,
+    role: user.role ?? undefined,
     stats: [
       { value: String(user.stats.eventsBooked), label: "Events booked" },
       { value: String(user.stats.completed), label: "Completed" },

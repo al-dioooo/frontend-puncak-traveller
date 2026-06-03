@@ -1,4 +1,5 @@
 import { buildBackendAuthUrl } from "@/lib/server-auth-api";
+import { setAuthCookie } from "@/lib/auth-cookie";
 import { NextRequest, NextResponse } from "next/server";
 
 const AUTH_TIMEOUT_MS = 8000;
@@ -25,6 +26,11 @@ export async function POST(request: NextRequest) {
         ? "Signed in successfully."
         : "Unable to sign in with those credentials.",
     }));
+
+    if (response.ok && typeof data.token === "string") {
+      await setAuthCookie(data.token);
+      delete data.token;
+    }
 
     return NextResponse.json(data, { status: response.status });
   } catch (error) {

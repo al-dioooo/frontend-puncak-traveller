@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { getAuthCookieToken } from "@/lib/auth-cookie";
 import { buildApiUrl } from "@/lib/puncak-api";
 
 type ProxyContext = {
@@ -10,6 +11,10 @@ export async function GET(request: NextRequest, context: ProxyContext) {
 }
 
 export async function POST(request: NextRequest, context: ProxyContext) {
+  return forwardRequest(request, context);
+}
+
+export async function PUT(request: NextRequest, context: ProxyContext) {
   return forwardRequest(request, context);
 }
 
@@ -31,7 +36,8 @@ async function forwardRequest(request: NextRequest, context: ProxyContext) {
   const headers = new Headers({
     Accept: "application/json",
   });
-  const authorization = request.headers.get("Authorization");
+  const cookieToken = await getAuthCookieToken();
+  const authorization = request.headers.get("Authorization") ?? (cookieToken ? `Bearer ${cookieToken}` : null);
   const contentType = request.headers.get("Content-Type");
 
   if (authorization) {
@@ -43,7 +49,7 @@ async function forwardRequest(request: NextRequest, context: ProxyContext) {
   }
 
   const response = await fetch(target, {
-    body: request.method === "GET" ? undefined : await request.text(),
+    body: request.method === "GET" ? undefined : await request.arrayBuffer(),
     cache: "no-store",
     headers,
     method: request.method,
