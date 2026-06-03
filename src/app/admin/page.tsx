@@ -11,178 +11,97 @@ import {
   IconTrendingUp,
   IconPlus,
   IconChevronRight,
-  IconMail,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { cn } from "@/lib/cn";
 import { readStoredAuth } from "@/lib/client-auth";
 
-// Fallback statistics matches references
-const fallbackStats = {
-  eventsCount: 24,
-  upcomingEvents: 14,
-  bookingsCount: 1284,
-  ticketsSold: 8640,
-  revenue: "Rp 248M",
+type DashboardData = {
+  stats: {
+    eventsCount: number;
+    upcomingEvents: number;
+    bookingsCount: number;
+    ticketsSold: number;
+    revenue: number;
+  };
+  chart: {
+    labels: string[];
+    values: number[];
+  };
+  recentBookings: Array<{
+    reference: string;
+    member: {
+      name: string;
+      email?: string;
+    };
+    event: string;
+    total: number;
+    status: string;
+  }>;
+  upcomingEvents: Array<{
+    title: string;
+    date: string;
+    sold: number;
+    total: number;
+    percentage: number;
+    live: boolean;
+  }>;
 };
 
-// Recent bookings matching references
-const recentBookings = [
-  {
-    reference: "PTR-26-8F3K2A",
-    member: {
-      name: "Alex Puncak",
-      avatar: "",
-    },
-    event: "Puncak Trail Run 2026",
-    total: "Rp 290K",
-    status: "Paid",
+const emptyDashboard: DashboardData = {
+  stats: {
+    eventsCount: 0,
+    upcomingEvents: 0,
+    bookingsCount: 0,
+    ticketsSold: 0,
+    revenue: 0,
   },
-  {
-    reference: "PHC-26-2M9X1B",
-    member: {
-      name: "Maya Sari",
-      avatar: "",
-    },
-    event: "Highland Camp & Bonfire",
-    total: "Rp 320K",
-    status: "Paid",
+  chart: {
+    labels: [],
+    values: [],
   },
-  {
-    reference: "PFR-26-7K2P0Q",
-    member: {
-      name: "Budi Hartono",
-      avatar: "",
-    },
-    event: "Forest Fun Run 10K",
-    total: "Rp 360K",
-    status: "Pending",
-  },
-  {
-    reference: "PYG-26-5T8L3C",
-    member: {
-      name: "Indah Permata",
-      avatar: "",
-    },
-    event: "Mindful Mountain Yoga",
-    total: "Rp 190K",
-    status: "Paid",
-  },
-  {
-    reference: "PTR-26-9D4F7E",
-    member: {
-      name: "Rian Maulana",
-      avatar: "",
-    },
-    event: "Puncak Trail Run 2026",
-    total: "Rp 95K",
-    status: "Cancelled",
-  },
-];
-
-// Upcoming events visual list matching references
-const upcomingEventsList = [
-  {
-    title: "Puncak Trail Run 2026",
-    date: "14 Jun 2026",
-    sold: 158,
-    total: 200,
-    percentage: 79,
-    live: false,
-  },
-  {
-    title: "Sunrise Healthy Walk",
-    date: "22 Jun 2026",
-    sold: 64,
-    total: 150,
-    percentage: 43,
-    live: false,
-  },
-  {
-    title: "Highland Camp & Bonfire",
-    date: "4–6 Jul 2026",
-    sold: 42,
-    total: 60,
-    percentage: 70,
-    live: false,
-  },
-  {
-    title: "Forest Fun Run 10K",
-    date: "Today · live",
-    sold: 200,
-    total: 200,
-    percentage: 100,
-    live: true,
-  },
-];
-
-// Inbox notifications feed matching references
-const inboxMessages = [
-  {
-    sender: "Lina K.",
-    subject: "Question about the 21K cut-off time…",
-    time: "2h ago",
-  },
-  {
-    sender: "Dimas P.",
-    subject: "Can I transfer my camp ticket?",
-    time: "5h ago",
-  },
-  {
-    sender: "Putri A.",
-    subject: "Partnership — trail nutrition brand",
-    time: "1d ago",
-  },
-];
+  recentBookings: [],
+  upcomingEvents: [],
+};
 
 export default function AdminDashboardPage() {
   const [profile] = useState(() => readStoredAuth());
-  const [stats, setStats] = useState(fallbackStats);
+  const [dashboard, setDashboard] = useState<DashboardData>(emptyDashboard);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadStats() {
+    async function loadDashboard() {
+      setLoading(true);
+      setError("");
+
       try {
-        // Load events, bookings, galleries count from API to merge with mock
-        const [eventsRes, bookingsRes] = await Promise.all([
-          fetch("/api/puncak/events", {
-            headers: { Accept: "application/json" },
-          }),
-          fetch("/api/puncak/bookings", {
-            headers: { Accept: "application/json" },
-          }),
-        ]);
-
-        let apiEventsCount = fallbackStats.eventsCount;
-        let apiBookingsCount = fallbackStats.bookingsCount;
-
-        if (eventsRes.ok) {
-          const eventsData = await eventsRes.json();
-          if (Array.isArray(eventsData.data)) {
-            apiEventsCount = eventsData.data.length;
-          }
-        }
-
-        if (bookingsRes.ok) {
-          const bookingsData = await bookingsRes.json();
-          if (Array.isArray(bookingsData.data)) {
-            apiBookingsCount = bookingsData.data.length;
-          }
-        }
-
-        setStats({
-          eventsCount: apiEventsCount,
-          upcomingEvents: Math.max(14, apiEventsCount - 10),
-          bookingsCount: apiBookingsCount,
-          ticketsSold: Math.max(8640, apiBookingsCount * 6),
-          revenue: apiBookingsCount > 10 ? `Rp ${(apiBookingsCount * 0.193).toFixed(1)}M` : fallbackStats.revenue,
+        const response = await fetch("/api/puncak/admin/dashboard", {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
         });
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(payload.message ?? "Dashboard data could not be loaded.");
+        }
+
+        setDashboard(payload.data ?? emptyDashboard);
       } catch (err) {
-        console.warn("Unable to load live admin statistics, utilizing ref data:", err);
+        console.warn("Unable to load admin dashboard data:", err);
+        setDashboard(emptyDashboard);
+        setError(err instanceof Error ? err.message : "Dashboard data could not be loaded.");
+      } finally {
+        setLoading(false);
       }
     }
 
-    loadStats();
+    loadDashboard();
   }, []);
+
+  const { stats, recentBookings, upcomingEvents } = dashboard;
+  const chartLabels = dashboard.chart.labels.length > 0 ? dashboard.chart.labels : ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"];
+  const chartValues = dashboard.chart.values.length > 0 ? dashboard.chart.values : [0, 0, 0, 0, 0, 0, 0, 0];
 
   // Apache ECharts styling options matching reference dashboard overview
   const chartOptions = {
@@ -203,7 +122,7 @@ export default function AdminDashboardPage() {
     },
     xAxis: {
       type: "category",
-      data: ["W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"],
+      data: chartLabels,
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: { color: "#647589", fontSize: 11, fontWeight: "500" },
@@ -220,7 +139,7 @@ export default function AdminDashboardPage() {
         name: "Bookings Volume",
         type: "bar",
         barWidth: "32%",
-        data: [280, 420, 390, 610, 570, 780, 920, stats.bookingsCount],
+        data: chartValues,
         itemStyle: {
           color: "#F37820", // Puncak Orange
           borderRadius: [4, 4, 0, 0],
@@ -238,28 +157,28 @@ export default function AdminDashboardPage() {
     {
       title: "Upcoming events",
       value: stats.upcomingEvents,
-      change: "+3 this week",
+      change: "Live",
       icon: IconCalendarEvent,
       iconColor: "text-amber-600 bg-amber-50",
     },
     {
       title: "Bookings · 30 days",
       value: stats.bookingsCount.toLocaleString(),
-      change: "+12.5%",
+      change: "30 days",
       icon: IconTicket,
       iconColor: "text-orange-600 bg-orange-50",
     },
     {
       title: "Tickets sold",
       value: stats.ticketsSold.toLocaleString(),
-      change: "+8.2%",
+      change: "30 days",
       icon: IconTag,
       iconColor: "text-teal-600 bg-teal-50",
     },
     {
       title: "Revenue · 30 days",
-      value: stats.revenue,
-      change: "+15.0%",
+      value: formatRupiah(stats.revenue),
+      change: "Paid",
       icon: IconCoin,
       iconColor: "text-sky-600 bg-sky-50",
     },
@@ -282,7 +201,7 @@ export default function AdminDashboardPage() {
             <span>Last 30 days</span>
           </div>
           <Link
-            href="/admin/events"
+            href="/admin/events/new"
             className="flex items-center gap-2 bg-[#F37820] text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition motion-control"
           >
             <IconPlus className="w-4 h-4" />
@@ -290,6 +209,12 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {error ? (
+        <div className="bg-white border border-red-100 text-red-700 rounded-2xl p-5 text-sm font-bold">
+          {error}
+        </div>
+      ) : null}
 
       {/* Metrics Row Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -309,7 +234,7 @@ export default function AdminDashboardPage() {
             </div>
             <div className="mt-4">
               <div className="text-3xl font-extrabold tracking-tight text-[#0F172A] font-display leading-none">
-                {card.value}
+                {loading ? "..." : card.value}
               </div>
               <div className="text-[13px] font-medium text-[#647589] mt-2">
                 {card.title}
@@ -397,33 +322,40 @@ export default function AdminDashboardPage() {
                           <div className="w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center font-bold text-xs text-[#F37820] uppercase">
                             {booking.member.name.slice(0, 2)}
                           </div>
-                          <span className="text-[13.5px] font-bold text-[#0F172A]">
-                            {booking.member.name}
-                          </span>
+                        <span className="text-[13.5px] font-bold text-[#0F172A]">
+                          {booking.member.name}
+                        </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 text-[13.5px] text-slate-700">
                         {booking.event}
                       </td>
                       <td className="px-6 py-4 text-[13.5px] font-bold text-[#0F172A]">
-                        {booking.total}
+                        {formatRupiah(booking.total)}
                       </td>
                       <td className="px-6 py-4">
                         <span
                           className={cn(
                             "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold",
-                            booking.status === "Paid"
+                            booking.status === "paid"
                               ? "bg-teal-50 text-teal-700"
-                              : booking.status === "Pending"
+                              : booking.status === "pending"
                               ? "bg-amber-50 text-amber-700"
                               : "bg-red-50 text-red-700"
                           )}
                         >
-                          {booking.status}
+                          {labelize(booking.status)}
                         </span>
                       </td>
                     </tr>
                   ))}
+                  {!loading && recentBookings.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-[#647589] text-[14px]">
+                        No recent bookings yet.
+                      </td>
+                    </tr>
+                  ) : null}
                 </tbody>
               </table>
             </div>
@@ -446,7 +378,7 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
             <div className="space-y-4">
-              {upcomingEventsList.map((event) => (
+              {upcomingEvents.map((event) => (
                 <div key={event.title} className="flex gap-4">
                   <div className="w-12 h-12 bg-slate-100 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-slate-400 text-xs uppercase overflow-hidden relative border border-[#E2E8F0]">
                     {event.live ? (
@@ -486,47 +418,39 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Inbox Summary Panel */}
-          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm space-y-5">
-            <div className="flex justify-between items-center">
-              <h3 className="text-[17px] font-bold text-[#0F172A] font-display">
-                Inbox
-              </h3>
-              <span className="text-[11px] font-bold bg-[#0D9488]/10 text-[#0D9488] px-2.5 py-0.5 rounded-full">
-                9 new
-              </span>
-            </div>
-            <div className="divide-y divide-[#F1F5F9] -mx-6 -mb-6">
-              {inboxMessages.map((msg) => (
-                <div
-                  key={msg.sender}
-                  className="flex items-start gap-3.5 px-6 py-4 hover:bg-[#F8F7F5] transition duration-150 cursor-pointer"
-                >
-                  <span className="p-2 bg-slate-100 rounded-full text-slate-500">
-                    <IconMail className="w-4 h-4" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[13.5px] font-bold text-[#0F172A]">
-                        {msg.sender}
-                      </span>
-                      <span className="text-[10px] text-[#647589] font-medium">
-                        {msg.time}
-                      </span>
-                    </div>
-                    <p className="text-[12.5px] text-[#647589] font-medium truncate mt-0.5">
-                      {msg.subject}
-                    </p>
-                  </div>
+              {!loading && upcomingEvents.length === 0 ? (
+                <div className="rounded-2xl bg-[#F8F7F5] border border-[#E2E8F0] p-5 text-center text-[#647589] text-[14px] font-semibold">
+                  No upcoming events yet.
                 </div>
-              ))}
+              ) : null}
             </div>
           </div>
         </div>
       </div>
     </AdminLayout>
   );
+}
+
+function formatRupiah(value: number): string {
+  if (value <= 0) {
+    return "Rp 0";
+  }
+
+  if (value >= 1_000_000) {
+    return `Rp ${(value / 1_000_000).toFixed(value >= 10_000_000 ? 0 : 1)}M`;
+  }
+
+  if (value >= 1_000) {
+    return `Rp ${Math.round(value / 1_000)}K`;
+  }
+
+  return `Rp ${value.toLocaleString("id-ID")}`;
+}
+
+function labelize(value: string): string {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
 }

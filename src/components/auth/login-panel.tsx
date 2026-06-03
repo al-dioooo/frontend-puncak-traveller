@@ -65,7 +65,7 @@ export function LoginPanel({
         role: data.user?.role,
       });
       onAuthenticated?.();
-      router.push(getResolvedReturnTo(returnTo));
+      router.push(data.user?.role === "admin" ? "/admin" : getResolvedReturnTo(returnTo));
     } catch {
       setMessage("The auth service is not reachable right now.");
     } finally {
@@ -125,7 +125,7 @@ export function LoginPanel({
             />
             <span>Remember me</span>
           </label>
-          <a href="/contact">Forgot password?</a>
+          <a href="/forgot-password">Forgot password?</a>
         </div>
         <ActionButton type="submit" icon={IconLock} disabled={pending}>
           {pending ? "Signing in..." : "Log in"}

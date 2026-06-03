@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
   await setAuthCookie(payload.token);
 
-  return NextResponse.redirect(new URL(returnTo, request.url));
+  return NextResponse.redirect(new URL(payload.user?.role === "admin" ? "/admin" : returnTo, request.url));
 }
 
 function safeReturnTo(value: string | null) {

@@ -6,6 +6,7 @@ import { IconMenu2, IconX } from "@tabler/icons-react";
 import Logo from "@/components/logo";
 import { ButtonLink } from "@/components/landing/button-link";
 import { navLinks } from "@/components/landing/data";
+import { ProfileMenu } from "@/components/auth/profile-menu";
 import { cn } from "@/lib/cn";
 
 export function Header() {
@@ -27,12 +28,18 @@ export function Header() {
         </nav>
 
         <div className="desktop-actions">
-          <ButtonLink href="/login" variant="ghost" size="sm">
-            Log in
-          </ButtonLink>
-          <ButtonLink href="/login" variant="light" size="sm">
-            Sign up
-          </ButtonLink>
+          <ProfileMenu
+            fallback={
+              <>
+                <ButtonLink href="/login" variant="ghost" size="sm">
+                  Log in
+                </ButtonLink>
+                <ButtonLink href="/signup" variant="light" size="sm">
+                  Sign up
+                </ButtonLink>
+              </>
+            }
+          />
         </div>
 
         <button
@@ -65,12 +72,19 @@ export function Header() {
           ))}
         </nav>
         <div className="mobile-actions">
-          <ButtonLink href="/login" variant="outline">
-            Log in
-          </ButtonLink>
-          <ButtonLink href="/login" variant="primary">
-            Sign up
-          </ButtonLink>
+          <ProfileMenu
+            mobile
+            fallback={
+              <>
+                <ButtonLink href="/login" variant="outline">
+                  Log in
+                </ButtonLink>
+                <ButtonLink href="/signup" variant="primary">
+                  Sign up
+                </ButtonLink>
+              </>
+            }
+          />
         </div>
       </div>
     </header>

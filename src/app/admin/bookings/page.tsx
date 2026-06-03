@@ -3,12 +3,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import {
   IconSearch,
-  IconChevronDown,
   IconDownload,
   IconDotsVertical,
   IconChevronLeft,
   IconChevronRight,
-  IconCalendar,
   IconCheck,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
@@ -26,6 +24,7 @@ interface ApiBooking {
   qty?: number;
   total?: number;
   status?: string;
+  paymentStatus?: string;
   date?: string;
 }
 
@@ -50,117 +49,59 @@ type BookingRow = {
   date: string;
 };
 
-// Mock bookings list matching reference file Bookings List.html
-const fallbackBookings: BookingRow[] = [
-  {
-    reference: "PTR-26-8F3K2A",
-    member: { name: "Alex Puncak", email: "alex.puncak@email.com" },
-    event: { title: "Puncak Trail Run 2026" },
-    tickets: 2,
-    total: "Rp 290K",
-    status: "Paid",
-    date: "02 Jun 2026",
-  },
-  {
-    reference: "PHC-26-2M9X1B",
-    member: { name: "Maya Sari", email: "maya.sari@email.com" },
-    event: { title: "Highland Camp & Bonfire" },
-    tickets: 1,
-    total: "Rp 320K",
-    status: "Paid",
-    date: "01 Jun 2026",
-  },
-  {
-    reference: "PFR-26-7K2P0Q",
-    member: { name: "Budi Hartono", email: "budi.h@email.com" },
-    event: { title: "Forest Fun Run 10K" },
-    tickets: 3,
-    total: "Rp 360K",
-    status: "Pending",
-    date: "01 Jun 2026",
-  },
-  {
-    reference: "PYG-26-5T8L3C",
-    member: { name: "Indah Permata", email: "indah.p@email.com" },
-    event: { title: "Mindful Mountain Yoga" },
-    tickets: 2,
-    total: "Rp 190K",
-    status: "Paid",
-    date: "31 May 2026",
-  },
-  {
-    reference: "PTR-26-9D4F7E",
-    member: { name: "Rian Maulana", email: "rian.m@email.com" },
-    event: { title: "Puncak Trail Run 2026" },
-    tickets: 1,
-    total: "Rp 95K",
-    status: "Cancelled",
-    date: "30 May 2026",
-  },
-  {
-    reference: "PWK-26-1A6B2D",
-    member: { name: "Sari Wulandari", email: "sari.w@email.com" },
-    event: { title: "Sunrise Healthy Walk" },
-    tickets: 4,
-    total: "Free",
-    status: "Paid",
-    date: "29 May 2026",
-  },
-  {
-    reference: "PHM-26-3C9E5F",
-    member: { name: "Budi Hartono", email: "budi.h@email.com" },
-    event: { title: "Puncak Pass Half Marathon" },
-    tickets: 1,
-    total: "Rp 200K",
-    status: "Refunded",
-    date: "12 May 2026",
-  },
-];
-
 export default function AdminBookingsPage() {
-  const [bookings, setBookings] = useState<BookingRow[]>(fallbackBookings);
-  const [selectedStatus, setSelectedStatus] = useState<string>("All");
+  const [bookings, setBookings] = useState<BookingRow[]>([]);
+  const selectedStatus: string = "All";
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const [selectedBookingRef, setSelectedBookingRef] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadBookings() {
+      setLoading(true);
+      setError("");
       try {
-        const response = await fetch("/api/puncak/bookings", {
+        const response = await fetch(`/api/puncak/bookings?per_page=15&page=${page}`, {
           headers: { Accept: "application/json" },
         });
 
         if (!response.ok) throw new Error("API failed");
 
         const payload = await response.json();
-        if (Array.isArray(payload.data) && payload.data.length > 0) {
-          // Merge API results with mock to get detailed mock visual names if needed
-          const apiRows = payload.data.map((item: ApiBooking) => ({
-            reference: item.reference || `REF-${item.id}`,
-            member: {
-              name: item.user?.name || item.name || "Alex Puncak",
-              email: item.user?.email || item.email || "alex@email.com",
-            },
-            event: {
-              title: item.event?.title || "Puncak Trail Run 2026",
-            },
-            tickets: getBookingTicketCount(item),
-            total: item.total ? `Rp ${(item.total / 1000).toFixed(0)}K` : "Rp 150K",
-            status: displayBookingStatus(item.status),
-            date: formatBookingDate(item.date),
-          }));
-          setBookings(apiRows);
-        }
+        const apiRows = Array.isArray(payload.data) ? payload.data.map((item: ApiBooking) => ({
+          reference: item.reference || `REF-${item.id}`,
+          member: {
+            name: item.user?.name || item.name || "Unknown member",
+            email: item.user?.email || item.email || "unknown@email.com",
+          },
+          event: {
+            title: item.event?.title || "Puncak Travellers event",
+          },
+          tickets: getBookingTicketCount(item),
+          total: item.total ? `Rp ${(item.total / 1000).toFixed(0)}K` : "Rp 0",
+          status: displayBookingStatus(item.paymentStatus ?? item.status),
+          date: formatBookingDate(item.date),
+        })) : [];
+        setBookings(apiRows);
+        setTotal(payload.meta?.total ?? apiRows.length);
       } catch (err) {
-        console.warn("Unable to load bookings from API, using fallback reference data:", err);
+        console.warn("Unable to load bookings from API:", err);
+        setBookings([]);
+        setTotal(0);
+        setError("Bookings could not be loaded.");
+      } finally {
+        setLoading(false);
       }
     }
 
     loadBookings();
-  }, []);
+  }, [page]);
 
   // Sync statuses from drawer refund updates
   function handleStatusChange(ref: string, newStatus: "Paid" | "Pending" | "Cancelled" | "Refunded") {
@@ -212,6 +153,33 @@ export default function AdminBookingsPage() {
     setTimeout(() => setToastMessage(null), 3000);
   }
 
+  async function updatePaymentStatus(reference: string, status: BookingRow["status"]) {
+    const paymentStatus = status.toLowerCase();
+
+    try {
+      const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}/payment-status`, {
+        body: JSON.stringify({ payment_status: paymentStatus }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to update payment status.");
+      }
+
+      handleStatusChange(reference, status);
+      setToastMessage("Payment status updated.");
+    } catch (statusError) {
+      setToastMessage(statusError instanceof Error ? statusError.message : "Unable to update payment status.");
+    } finally {
+      setTimeout(() => setToastMessage(null), 3000);
+    }
+  }
+
   return (
     <AdminLayout activeTab="Bookings" title="Bookings">
       {/* Toast Alert */}
@@ -257,7 +225,7 @@ export default function AdminBookingsPage() {
             />
           </div>
 
-          {/* Tab Filter Chips */}
+          {/* Filter chips intentionally hidden per CMS revision request.
           {["All", "Paid", "Pending", "Cancelled", "Refunded"].map((status) => (
             <button
               key={status}
@@ -272,9 +240,10 @@ export default function AdminBookingsPage() {
               {status}
             </button>
           ))}
+          */}
         </div>
 
-        {/* Date Filter Selection */}
+        {/* Filter/sort controls intentionally hidden per CMS revision request.
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] px-3.5 py-1.5 rounded-full text-[12.5px] font-bold text-[#0F172A] cursor-pointer shadow-sm hover:bg-slate-50 transition select-none">
             <IconCalendar className="w-4 h-4 text-slate-400" />
@@ -282,7 +251,14 @@ export default function AdminBookingsPage() {
             <IconChevronDown className="w-3.5 h-3.5 text-slate-500" />
           </div>
         </div>
+        */}
       </div>
+
+      {error ? (
+        <div className="bg-white border border-red-100 text-red-700 rounded-2xl p-5 text-sm font-bold">
+          {error}
+        </div>
+      ) : null}
 
       {/* Main Table Grid Panel */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
@@ -326,7 +302,13 @@ export default function AdminBookingsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
-              {filteredBookings.map((b) => (
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-6 py-12 text-center text-[#647589] text-[14px]">
+                    Loading bookings...
+                  </td>
+                </tr>
+              ) : filteredBookings.map((b) => (
                 <tr
                   key={b.reference}
                   onClick={() => {
@@ -379,20 +361,26 @@ export default function AdminBookingsPage() {
                     {b.total}
                   </td>
                   <td className="px-6 py-4">
-                    <span
+                    <select
+                      value={b.status}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={(event) => updatePaymentStatus(b.reference, event.target.value as BookingRow["status"])}
                       className={cn(
-                        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold",
+                        "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
                         b.status === "Paid"
                           ? "bg-teal-50 text-teal-700"
                           : b.status === "Pending"
                           ? "bg-amber-50 text-amber-700"
                           : b.status === "Cancelled"
                           ? "bg-red-50 text-red-700"
-                          : "bg-slate-100 text-slate-700"
+                          : "bg-slate-100 text-slate-700",
                       )}
                     >
-                      {b.status}
-                    </span>
+                      <option>Paid</option>
+                      <option>Pending</option>
+                      <option>Cancelled</option>
+                      <option>Refunded</option>
+                    </select>
                   </td>
                   <td className="px-6 py-4 text-[13.5px] text-[#647589] whitespace-nowrap">
                     {b.date}
@@ -405,10 +393,10 @@ export default function AdminBookingsPage() {
                 </tr>
               ))}
 
-              {filteredBookings.length === 0 && (
+              {!loading && filteredBookings.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-6 py-12 text-center text-[#647589] text-[14px]">
-                    No bookings found matching selected filters.
+                    No bookings available.
                   </td>
                 </tr>
               )}
@@ -419,26 +407,24 @@ export default function AdminBookingsPage() {
         {/* Pagination Row */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-[#E2E8F0] bg-white">
           <span className="text-[12.5px] text-[#647589] font-medium">
-            Showing 1–{filteredBookings.length} of {bookings.length} bookings
+            Showing {filteredBookings.length === 0 ? 0 : (page - 1) * 15 + 1}–{(page - 1) * 15 + filteredBookings.length} of {total} bookings
           </span>
           <div className="flex items-center gap-1">
-            <button className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-400 hover:bg-slate-50 transition">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition disabled:opacity-40"
+            >
               <IconChevronLeft className="w-4 h-4" />
             </button>
             <button className="w-8 h-8 rounded-lg bg-[#F37820]/15 text-[#C24B00] border border-[#F37820]/15 text-xs font-bold transition">
-              1
+              {page}
             </button>
-            <button className="w-8 h-8 rounded-lg text-slate-600 hover:bg-slate-50 text-xs font-semibold transition">
-              2
-            </button>
-            <button className="w-8 h-8 rounded-lg text-slate-600 hover:bg-slate-50 text-xs font-semibold transition">
-              3
-            </button>
-            <span className="px-1 text-slate-400 text-xs font-bold">…</span>
-            <button className="w-8 h-8 rounded-lg text-slate-600 hover:bg-slate-50 text-xs font-semibold transition">
-              184
-            </button>
-            <button className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition">
+            <button
+              disabled={page * 15 >= total}
+              onClick={() => setPage((value) => value + 1)}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition disabled:opacity-40"
+            >
               <IconChevronRight className="w-4 h-4" />
             </button>
           </div>

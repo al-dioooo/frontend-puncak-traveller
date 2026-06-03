@@ -18,7 +18,6 @@ import {
   IconTicket,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
-import { getEventDetailBySlug } from "@/lib/reference-data";
 import { cn } from "@/lib/cn";
 
 type TicketInputRow = {
@@ -133,36 +132,12 @@ export default function AdminEditEventPage({ params }: EditContext) {
 
         return;
       } catch (error) {
-        console.warn("Unable to load event from API, using reference data:", error);
+        console.warn("Unable to load event from API:", error);
+        triggerToast("Event details could not be loaded.");
       }
     }
 
     loadEvent();
-
-    // Attempt loading from reference data
-    const detail = getEventDetailBySlug(slug);
-    if (detail) {
-      setTitle(detail.title);
-      setUrlSlug(slug);
-      setCommunity(detail.organiser?.name || "Puncak Runners");
-      setActivity(detail.category);
-      setDescription(detail.summary?.join("\n") || "");
-      setStartsAt(detail.date);
-      setEndsAt(`${detail.date.split("-")[0]} - 12:00`);
-      setLocation(detail.location);
-      
-      if (detail.tickets && detail.tickets.length > 0) {
-        setTickets(
-          detail.tickets.map((t, idx) => ({
-            id: t.id || String(idx),
-            name: t.name,
-            price: t.priceLabel || `Rp ${t.price.toLocaleString("id-ID")}`,
-            stock: String(t.stock || 50),
-            sold: Math.max(0, 100 - (t.stock || 50)),
-          }))
-        );
-      }
-    }
 
     return () => {
       active = false;

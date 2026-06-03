@@ -1,17 +1,15 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element */
+
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   IconSearch,
-  IconChevronDown,
   IconUpload,
   IconEdit,
   IconTrash,
   IconDownload,
   IconLink,
-  IconPhoto,
-  IconLayoutGrid,
-  IconList,
   IconCheck,
   IconLoader,
 } from "@tabler/icons-react";
@@ -24,6 +22,7 @@ interface ApiPhoto {
   event?: string;
   category?: "trail-run" | "camping" | "walk" | "hike" | "wellness";
   imageUrl?: string;
+  caption?: string;
 }
 
 type GalleryPhoto = {
@@ -35,68 +34,9 @@ type GalleryPhoto = {
   selected?: boolean;
 };
 
-const fallbackPhotos: GalleryPhoto[] = [
-  {
-    id: "summit-push",
-    title: "Summit push at dawn",
-    event: "Misty Ridge Hike",
-    category: "hike",
-    image: "/gallery/summit-push-at-dawn.jpg",
-  },
-  {
-    id: "pack-rolls-out",
-    title: "The 21K pack rolls out",
-    event: "Half Marathon",
-    category: "trail-run",
-    image: "/gallery/pack-rolls-out.jpg",
-  },
-  {
-    id: "tea-switchbacks",
-    title: "Tea-plantation switchbacks",
-    event: "Trail Run 2026",
-    category: "trail-run",
-    image: "/gallery/tea-plantation-switchbacks.jpg",
-  },
-  {
-    id: "bonfire-stargazing",
-    title: "Bonfire & stargazing",
-    event: "Highland Camp",
-    category: "camping",
-    image: "/gallery/bonfire-stargazing.jpg",
-  },
-  {
-    id: "cool-down",
-    title: "Cool-down at the falls",
-    event: "Forest Fun Run",
-    category: "trail-run",
-    image: "/gallery/cool-down-waterfall.jpg",
-  },
-  {
-    id: "sunrise-yoga",
-    title: "Sunrise mountain yoga",
-    event: "Mindful Mountain",
-    category: "wellness",
-    image: "/gallery/sunrise-yoga.jpg",
-  },
-  {
-    id: "walking-crew",
-    title: "Walking crew, all paces",
-    event: "Healthy Walk",
-    category: "walk",
-    image: "/gallery/walking-crew.jpg",
-  },
-  {
-    id: "lakeside-morning",
-    title: "Lakeside camp morning",
-    event: "Situ Patenggang",
-    category: "camping",
-    image: "/gallery/lakeside-camp-morning.jpg",
-  },
-];
-
 export default function AdminGalleriesPage() {
-  const [photos, setPhotos] = useState<GalleryPhoto[]>(fallbackPhotos);
-  const [selectedCategory, setSelectedCategory] = useState<string>("All");
+  const [photos, setPhotos] = useState<GalleryPhoto[]>([]);
+  const selectedCategory: string = "All";
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedItems, setSelectedItems] = useState<Record<string, boolean>>({});
   
@@ -106,34 +46,44 @@ export default function AdminGalleriesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadPhotos() {
+      setLoading(true);
+      setError("");
       try {
-        const response = await fetch("/api/puncak/galleries", {
+        const response = await fetch(`/api/puncak/galleries?per_page=15&page=${page}`, {
           headers: { Accept: "application/json" },
         });
 
         if (!response.ok) throw new Error("API failed");
 
         const payload = await response.json();
-        if (Array.isArray(payload.data) && payload.data.length > 0) {
-          const apiPhotos = payload.data.map((item: ApiPhoto) => ({
-            id: item.id || String(Math.random()),
-            title: item.title || "Untitled image",
-            event: item.event || "Unlinked Event",
-            category: item.category || "trail-run",
-            image: item.imageUrl || "/gallery/summit-push-at-dawn.jpg",
-          }));
-          setPhotos(apiPhotos);
-        }
+        const apiPhotos = Array.isArray(payload.data) ? payload.data.map((item: ApiPhoto) => ({
+          id: item.id || String(Math.random()),
+          title: item.caption || item.title || "Untitled image",
+          event: item.event || "Unlinked Event",
+          category: item.category || "trail-run",
+          image: item.imageUrl || "/gallery/summit-push-at-dawn.jpg",
+        })) : [];
+        setPhotos(apiPhotos);
+        setTotal(payload.meta?.total ?? apiPhotos.length);
       } catch (err) {
-        console.warn("Unable to load photos from API, utilizing fallback data:", err);
+        console.warn("Unable to load photos from API:", err);
+        setPhotos([]);
+        setTotal(0);
+        setError("Gallery photos could not be loaded.");
+      } finally {
+        setLoading(false);
       }
     }
 
     loadPhotos();
-  }, []);
+  }, [page]);
 
   function triggerToast(msg: string) {
     setToastMessage(msg);
@@ -209,8 +159,44 @@ export default function AdminGalleriesPage() {
   };
 
   const handleDownloadSelected = () => {
-    triggerToast(`Downloading ${selectedCount} photo assets archive...`);
+    const [firstId] = Object.keys(selectedItems);
+    if (!firstId) return;
+    window.location.href = `/api/puncak/galleries/${encodeURIComponent(firstId)}/download`;
+    triggerToast("Starting image download.");
     setSelectedItems({});
+  };
+
+  const handleEditCaption = async (photo: GalleryPhoto) => {
+    const nextCaption = window.prompt("Edit caption", photo.title);
+    if (!nextCaption || nextCaption === photo.title) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/puncak/galleries/${encodeURIComponent(photo.id)}`, {
+        body: JSON.stringify({
+          caption: nextCaption,
+          title: nextCaption,
+        }),
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(payload.message ?? "Unable to update caption.");
+      }
+
+      setPhotos((prev) =>
+        prev.map((item) => (item.id === photo.id ? { ...item, title: nextCaption } : item)),
+      );
+      triggerToast("Caption updated successfully.");
+    } catch (editError) {
+      triggerToast(editError instanceof Error ? editError.message : "Unable to update caption.");
+    }
   };
 
   // Mock File Upload Handler
@@ -329,7 +315,7 @@ export default function AdminGalleriesPage() {
             />
           </div>
 
-          {/* Album chips */}
+          {/* Filter chips intentionally hidden per CMS revision request.
           {["All photos", "Trail runs", "Camping", "Walks"].map((category) => (
             <button
               key={category}
@@ -344,9 +330,10 @@ export default function AdminGalleriesPage() {
               {category}
             </button>
           ))}
+          */}
         </div>
 
-        {/* Right context actions */}
+        {/* Filter/sort controls intentionally hidden per CMS revision request.
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] px-3.5 py-1.5 rounded-full text-[12.5px] font-bold text-[#0F172A] cursor-pointer shadow-sm hover:bg-slate-50 transition select-none">
             <span>Linked event</span>
@@ -355,7 +342,7 @@ export default function AdminGalleriesPage() {
 
           <div className="h-6 w-px bg-slate-200" />
 
-          {/* Grid switchers */}
+          Grid switchers hidden with the rest of the filter/sort controls.
           <div className="flex items-center border border-[#E2E8F0] rounded-lg overflow-hidden bg-white p-0.5 shadow-xs select-none">
             <button className="p-1.5 bg-[#F8F7F5] text-[#C24B00] rounded-md transition" title="Grid view">
               <IconLayoutGrid className="w-4 h-4" />
@@ -365,7 +352,14 @@ export default function AdminGalleriesPage() {
             </button>
           </div>
         </div>
+        */}
       </div>
+
+      {error ? (
+        <div className="bg-white border border-red-100 text-red-700 rounded-2xl p-5 text-sm font-bold">
+          {error}
+        </div>
+      ) : null}
 
       {/* Floating Bulk Actions Bar */}
       {selectedCount > 0 && (
@@ -449,7 +443,11 @@ export default function AdminGalleriesPage() {
         </div>
 
         {/* Existing Grid Photos */}
-        {filteredPhotos.map((photo) => {
+        {loading ? (
+          <div className="col-span-full py-12 text-center text-[#647589] text-[14px]">
+            Loading gallery photos...
+          </div>
+        ) : filteredPhotos.map((photo) => {
           const isChecked = !!selectedItems[photo.id];
           
           return (
@@ -462,9 +460,7 @@ export default function AdminGalleriesPage() {
               )}
             >
               {/* Photo Image Placeholder */}
-              <div className="absolute inset-0 bg-slate-900/10 flex items-center justify-center">
-                <IconPhoto className="w-10 h-10 text-slate-300" />
-              </div>
+              <img src={photo.image} alt={photo.title} className="absolute inset-0 w-full h-full object-cover" />
 
               {/* Selection Checkbox */}
               <button
@@ -483,7 +479,7 @@ export default function AdminGalleriesPage() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  triggerToast(`Editing caption for "${photo.title}"`);
+                  handleEditCaption(photo);
                 }}
                 className="absolute top-3 right-3 p-1 bg-black/40 text-white rounded-lg hover:bg-black/60 opacity-0 group-hover:opacity-100 transition duration-200 z-20"
                 title="Edit caption"
@@ -505,11 +501,36 @@ export default function AdminGalleriesPage() {
           );
         })}
 
-        {filteredPhotos.length === 0 && (
+        {!loading && filteredPhotos.length === 0 && (
           <div className="col-span-full py-12 text-center text-[#647589] text-[14px]">
             No photos found.
           </div>
         )}
+      </div>
+
+      <div className="flex justify-between items-center px-6 py-4 border border-[#E2E8F0] bg-white rounded-2xl shadow-sm">
+        <span className="text-[12.5px] text-[#647589] font-medium">
+          Showing {filteredPhotos.length === 0 ? 0 : (page - 1) * 15 + 1}–{(page - 1) * 15 + filteredPhotos.length} of {total} photos
+        </span>
+        <div className="flex items-center gap-1">
+          <button
+            disabled={page === 1}
+            onClick={() => setPage((value) => Math.max(1, value - 1))}
+            className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-slate-600 hover:bg-slate-50 transition disabled:opacity-40 text-xs font-bold"
+          >
+            Previous
+          </button>
+          <span className="w-8 h-8 rounded-lg bg-[#F37820]/15 text-[#C24B00] border border-[#F37820]/15 text-xs font-bold transition inline-flex items-center justify-center">
+            {page}
+          </span>
+          <button
+            disabled={page * 15 >= total}
+            onClick={() => setPage((value) => value + 1)}
+            className="px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-slate-600 hover:bg-slate-50 transition disabled:opacity-40 text-xs font-bold"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </AdminLayout>
   );

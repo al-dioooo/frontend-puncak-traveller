@@ -22,6 +22,7 @@ import { Badge } from "@/components/landing/badge";
 import { ButtonLink } from "@/components/landing/button-link";
 import { ActionButton } from "@/components/ui/action-button";
 import { LoginPanel } from "@/components/auth/login-panel";
+import { ProfileMenu } from "@/components/auth/profile-menu";
 import {
   bookingFee,
   formatRupiah,
@@ -611,6 +612,7 @@ function CheckoutHeader({ event }: { event: EventDetail }) {
         <span>Sign in</span>
         <span>Confirm</span>
       </div>
+      <ProfileMenu compact />
     </header>
   );
 }

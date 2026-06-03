@@ -4,13 +4,11 @@ import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import {
   IconSearch,
-  IconChevronDown,
   IconDownload,
   IconPlus,
   IconEdit,
   IconTrash,
   IconEye,
-  IconSelector,
   IconCheck,
   IconChevronLeft,
   IconChevronRight,
@@ -44,133 +42,55 @@ type EventRow = {
   priceLabel: string;
 };
 
-const fallbackEvents: EventRow[] = [
-  {
-    slug: "puncak-trail-run-2026",
-    title: "Puncak Trail Run 2026",
-    category: "Trail Run",
-    community: "Puncak Runners",
-    date: "14 Jun 2026",
-    status: "upcoming",
-    statusLabel: "Upcoming",
-    sold: 158,
-    capacity: 200,
-    priceLabel: "Rp 185K",
-  },
-  {
-    slug: "sunrise-healthy-walk",
-    title: "Sunrise Healthy Walk",
-    category: "Walk",
-    community: "Puncak Walkers",
-    date: "22 Jun 2026",
-    status: "upcoming",
-    statusLabel: "Upcoming",
-    sold: 64,
-    capacity: 150,
-    priceLabel: "Free",
-  },
-  {
-    slug: "highland-camp-bonfire",
-    title: "Highland Camp & Bonfire",
-    category: "Camping",
-    community: "Puncak Campers",
-    date: "04–06 Jul 2026",
-    status: "upcoming",
-    statusLabel: "Upcoming",
-    sold: 42,
-    capacity: 60,
-    priceLabel: "Rp 320K",
-  },
-  {
-    slug: "forest-fun-run-10k",
-    title: "Forest Fun Run 10K",
-    category: "Fun Run",
-    community: "Puncak Runners",
-    date: "Today · live",
-    status: "ongoing",
-    statusLabel: "Happening now",
-    sold: 200,
-    capacity: 200,
-    priceLabel: "Rp 120K",
-  },
-  {
-    slug: "misty-ridge-hike",
-    title: "Misty Ridge Hike",
-    category: "Hike",
-    community: "Puncak Travellers",
-    date: "28 Jun 2026",
-    status: "draft",
-    statusLabel: "Draft",
-    sold: 0,
-    capacity: 0,
-    priceLabel: "Rp 150K",
-  },
-  {
-    slug: "mindful-mountain-yoga",
-    title: "Mindful Mountain Yoga",
-    category: "Wellness",
-    community: "Puncak Travellers",
-    date: "29 Jun 2026",
-    status: "upcoming",
-    statusLabel: "Upcoming",
-    sold: 25,
-    capacity: 50,
-    priceLabel: "Rp 95K",
-  },
-  {
-    slug: "puncak-pass-half-marathon",
-    title: "Puncak Pass Half Marathon",
-    category: "Trail Run",
-    community: "Puncak Runners",
-    date: "11 May 2026",
-    status: "completed",
-    statusLabel: "Completed",
-    sold: 480,
-    capacity: 480,
-    priceLabel: "Rp 200K",
-  },
-];
-
 export default function AdminEventsPage() {
-  const [events, setEvents] = useState<EventRow[]>(fallbackEvents);
-  const [selectedFilter, setSelectedFilter] = useState<string>("All");
+  const [events, setEvents] = useState<EventRow[]>([]);
+  const selectedFilter: string = "All";
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadEvents() {
+      setLoading(true);
+      setError("");
       try {
-        const response = await fetch("/api/puncak/events", {
+        const response = await fetch(`/api/puncak/events?per_page=15&page=${page}`, {
           headers: { Accept: "application/json" },
         });
 
         if (!response.ok) throw new Error("API load failed");
 
         const payload = await response.json();
-        if (Array.isArray(payload.data) && payload.data.length > 0) {
-          const apiRows = payload.data.map((item: ApiEvent) => ({
-            slug: item.slug,
-            title: item.title,
-            category: item.category || "Adventure",
-            community: item.organiser?.name || "Puncak Travellers",
-            date: item.dateLabel || "14 Jun 2026",
-            status: item.status || "upcoming",
-            statusLabel: item.statusLabel || "Upcoming",
-            sold: item.participant_count || 0,
-            capacity: item.tickets?.reduce((acc: number, t: { stock?: number }) => acc + (t.stock || 0), 0) || 100,
-            priceLabel: item.priceLabel || "Free",
-          }));
-          // Merge API results with mock to preserve complete listing
-          setEvents(apiRows);
-        }
+        const apiRows = Array.isArray(payload.data) ? payload.data.map((item: ApiEvent) => ({
+          slug: item.slug,
+          title: item.title,
+          category: item.category || "Adventure",
+          community: item.organiser?.name || "Puncak Travellers",
+          date: item.dateLabel || "Not scheduled",
+          status: item.status || "upcoming",
+          statusLabel: item.statusLabel || "Upcoming",
+          sold: item.participant_count || 0,
+          capacity: item.tickets?.reduce((acc: number, t: { stock?: number }) => acc + (t.stock || 0), 0) || 0,
+          priceLabel: item.priceLabel || "Free",
+        })) : [];
+        setEvents(apiRows);
+        setTotal(payload.meta?.total ?? apiRows.length);
       } catch (err) {
-        console.warn("Unable to load events from API, utilizing fallback local data:", err);
+        console.warn("Unable to load events from API:", err);
+        setEvents([]);
+        setTotal(0);
+        setError("Events could not be loaded.");
+      } finally {
+        setLoading(false);
       }
     }
 
     loadEvents();
-  }, []);
+  }, [page]);
 
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
@@ -270,7 +190,7 @@ export default function AdminEventsPage() {
             <span>Export</span>
           </button>
           <Link
-            href="/admin/events/new/edit"
+            href="/admin/events/new"
             className="flex items-center gap-2 bg-[#F37820] text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition motion-control"
           >
             <IconPlus className="w-4 h-4" />
@@ -295,7 +215,7 @@ export default function AdminEventsPage() {
             />
           </div>
 
-          {/* Status chips */}
+          {/* Filter chips intentionally hidden per CMS revision request.
           {["All", "Upcoming", "Ongoing", "Past", "Drafts"].map((filter) => (
             <button
               key={filter}
@@ -310,9 +230,10 @@ export default function AdminEventsPage() {
               {filter}
             </button>
           ))}
+          */}
         </div>
 
-        {/* Right context chips */}
+        {/* Filter/sort controls intentionally hidden per CMS revision request.
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-white border border-[#E2E8F0] px-3.5 py-1.5 rounded-full text-[12.5px] font-bold text-[#0F172A] cursor-pointer shadow-sm hover:bg-slate-50 transition select-none">
             <span>All communities</span>
@@ -323,7 +244,14 @@ export default function AdminEventsPage() {
             <span>Sort: Date</span>
           </div>
         </div>
+        */}
       </div>
+
+      {error ? (
+        <div className="bg-white border border-red-100 text-red-700 rounded-2xl p-5 text-sm font-bold">
+          {error}
+        </div>
+      ) : null}
 
       {/* Main Table Grid Panel */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
@@ -364,7 +292,13 @@ export default function AdminEventsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
-              {filteredEvents.map((e) => {
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-[#647589] text-[14px]">
+                    Loading events...
+                  </td>
+                </tr>
+              ) : filteredEvents.map((e) => {
                 const percentage = e.capacity > 0 ? Math.round((e.sold / e.capacity) * 100) : 0;
                 
                 return (
@@ -476,10 +410,10 @@ export default function AdminEventsPage() {
                 );
               })}
 
-              {filteredEvents.length === 0 && (
+              {!loading && filteredEvents.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-6 py-12 text-center text-[#647589] text-[14px]">
-                    No events found matching filters.
+                    No events available.
                   </td>
                 </tr>
               )}
@@ -490,19 +424,24 @@ export default function AdminEventsPage() {
         {/* Pagination Row */}
         <div className="flex justify-between items-center px-6 py-4 border-t border-[#E2E8F0] bg-white">
           <span className="text-[12.5px] text-[#647589] font-medium">
-            Showing 1–{filteredEvents.length} of {events.length} events
+            Showing {filteredEvents.length === 0 ? 0 : (page - 1) * 15 + 1}–{(page - 1) * 15 + filteredEvents.length} of {total} events
           </span>
           <div className="flex items-center gap-1">
-            <button className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-400 hover:bg-slate-50 transition">
+            <button
+              disabled={page === 1}
+              onClick={() => setPage((value) => Math.max(1, value - 1))}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition disabled:opacity-40"
+            >
               <IconChevronLeft className="w-4 h-4" />
             </button>
             <button className="w-8 h-8 rounded-lg bg-[#F37820]/15 text-[#C24B00] border border-[#F37820]/15 text-xs font-bold transition">
-              1
+              {page}
             </button>
-            <button className="w-8 h-8 rounded-lg text-slate-600 hover:bg-slate-50 text-xs font-semibold transition">
-              2
-            </button>
-            <button className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition">
+            <button
+              disabled={page * 15 >= total}
+              onClick={() => setPage((value) => value + 1)}
+              className="p-1.5 rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50 transition disabled:opacity-40"
+            >
               <IconChevronRight className="w-4 h-4" />
             </button>
           </div>

@@ -16,6 +16,46 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Full-stack demo setup
+
+Backend repo: `../api-puncak-traveller`
+
+Demo admin credentials after seeding:
+
+```text
+Email: alice@puncaktraveller.id
+Password: aldio1234
+```
+
+Gmail SMTP for reset password:
+
+```text
+MAIL_MAILER=smtp
+MAIL_SCHEME=tls
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-gmail-address@gmail.com
+MAIL_PASSWORD=your-google-app-password
+MAIL_FROM_ADDRESS=your-gmail-address@gmail.com
+MAIL_FROM_NAME="Puncak Travellers"
+```
+
+Use a Google App Password, not the normal Gmail password. In Google Account settings, enable 2-Step Verification, create an app password for Mail, then paste that value into `MAIL_PASSWORD` in the backend `.env`.
+
+Run backend setup:
+
+```bash
+cd ../api-puncak-traveller
+php artisan migrate:fresh --seed
+php artisan serve --host=localhost --port=8000
+```
+
+Run frontend with:
+
+```bash
+PUNCAK_API_BASE_URL=http://localhost:8000 yarn dev
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

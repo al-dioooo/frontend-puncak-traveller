@@ -10,9 +10,6 @@ import {
   IconTicket,
   IconUsers,
   IconMapPin,
-  IconInbox,
-  IconSearch,
-  IconBell,
   IconChevronDown,
   IconLogout,
   IconUserCheck,
@@ -90,36 +87,21 @@ interface NavGroup {
       items: [
         {
           label: "Communities",
-          href: "#",
+          href: "/admin/communities",
           icon: IconUsers,
-          count: 6,
-          disabled: true,
+          count: null,
         },
         {
           label: "Places",
-          href: "#",
+          href: "/admin/places",
           icon: IconMapPin,
-          count: 38,
-          disabled: true,
+          count: null,
         },
         {
           label: "Members",
-          href: "#",
+          href: "/admin/members",
           icon: IconUserCheck,
-          count: "18.4k",
-          disabled: true,
-        },
-      ],
-    },
-    {
-      label: "Inbox",
-      items: [
-        {
-          label: "Messages",
-          href: "#",
-          icon: IconInbox,
-          count: 9,
-          disabled: true,
+          count: null,
         },
       ],
     },
@@ -236,28 +218,7 @@ interface NavGroup {
 
           {/* Right Side Options */}
           <div className="flex items-center gap-6">
-            {/* Search Input */}
-            <div className="relative w-72">
-              <IconSearch className="w-4 h-4 text-[#647589] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search events, bookings, members…"
-                className="w-full bg-[#F1F5F9] border-0 outline-none rounded-full py-1.5 pl-10 pr-4 text-[13px] text-[#0F172A] placeholder-[#647589] focus:ring-1 focus:ring-[#F37820] transition"
-              />
-            </div>
-
-            {/* Notification Icon */}
-            <div className="relative p-2 rounded-full hover:bg-slate-100 cursor-pointer transition text-[#0F172A]">
-              <IconBell className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white" />
-            </div>
-
-            {/* Message/Help Icon */}
-            <div className="p-2 rounded-full hover:bg-slate-100 cursor-pointer transition text-[#0F172A]">
-              <IconInbox className="w-5 h-5" />
-            </div>
-
-            <div className="h-6 w-px bg-slate-200" />
+            {/* Global search, notifications, and inbox controls intentionally hidden per CMS revision request. */}
 
             {/* User Dropdown */}
             <div className="relative">
