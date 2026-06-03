@@ -472,7 +472,14 @@ export function BookingTicketStep() {
 }
 
 export function BookingSignInStep() {
-  const { event, setSignedIn } = useBookingFlow();
+  const router = useRouter();
+  const { event, setSignedIn, signedIn } = useBookingFlow();
+
+  useEffect(() => {
+    if (signedIn) {
+      router.replace(`${event.bookingHref}/confirm`);
+    }
+  }, [event.bookingHref, router, signedIn]);
 
   return (
     <CheckoutFrame

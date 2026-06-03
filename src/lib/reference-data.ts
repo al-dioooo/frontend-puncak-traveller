@@ -81,6 +81,7 @@ export type AccountBooking = {
   location: string;
   reference: string;
   paymentStatus?: string;
+  ticketAvailable?: boolean;
   ticketLabel: string;
   primaryAction: string;
   primaryHref?: string;
@@ -396,9 +397,10 @@ export const accountBookings: AccountBooking[] = [
     date: "Sat, 14 Jun 2026 - 06:00",
     location: "Gunung Pangrango, Bogor",
     reference: "PTR-26-8F3K2A",
+    paymentStatus: "paid",
+    ticketAvailable: true,
     ticketLabel: "Tickets 2 - 21K + 5K",
     primaryAction: "View ticket",
-    secondaryAction: "Manage booking",
   },
   {
     id: "PTC-26-2M9X1B",
@@ -408,9 +410,10 @@ export const accountBookings: AccountBooking[] = [
     date: "Fri-Sun, 4-6 Jul 2026",
     location: "Ranca Upas, Ciwidey",
     reference: "PTC-26-2M9X1B",
+    paymentStatus: "pending",
+    ticketAvailable: false,
     ticketLabel: "Tickets 1 - Weekend pass",
-    primaryAction: "View ticket",
-    secondaryAction: "Manage booking",
+    primaryAction: "Ticket unavailable",
   },
   {
     id: "PHM-26-7K2P0Q",
@@ -420,6 +423,8 @@ export const accountBookings: AccountBooking[] = [
     date: "Sun, 11 May 2026",
     location: "Puncak Pass, Cianjur",
     reference: "PHM-26-7K2P0Q",
+    paymentStatus: "paid",
+    ticketAvailable: true,
     ticketLabel: "Tickets 1 - 21K",
     primaryAction: "Certificate",
     secondaryAction: "View recap",

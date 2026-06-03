@@ -1,11 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { IconEdit } from "@tabler/icons-react";
 import { LoginPanel } from "@/components/auth/login-panel";
 import { AccountTabs } from "@/components/account/account-tabs";
 import { PageHero } from "@/components/site/page-hero";
-import { ActionButton } from "@/components/ui/action-button";
 import { writeStoredAuth } from "@/lib/client-auth";
 import type { AccountBooking } from "@/lib/reference-data";
 
@@ -233,11 +231,7 @@ export function AccountDashboard() {
         image="/pages/account-hero.jpg"
         imageAlt="Puncak Travellers community members on a forest trail"
         stats={activeProfile.stats}
-      >
-        <ActionButton variant="light" icon={IconEdit}>
-          Edit profile
-        </ActionButton>
-      </PageHero>
+      />
       {loading || initializing ? (
         <section className="section" aria-live="polite">
           <div className="wrap">

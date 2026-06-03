@@ -149,6 +149,7 @@ export function AccountBookingCard({
     ? `Payment: ${booking.paymentStatus[0]?.toUpperCase()}${booking.paymentStatus.slice(1)}`
     : null;
   const paymentTone = booking.paymentStatus === "paid" ? "teal" : booking.paymentStatus === "pending" ? "orange" : "navy";
+  const canViewTicket = booking.ticketAvailable === true && booking.paymentStatus === "paid";
 
   return (
     <article className="account-booking-card motion-card js-card">
@@ -166,14 +167,24 @@ export function AccountBookingCard({
         <MetaItem icon={IconTicket}>{booking.ticketLabel}</MetaItem>
       </div>
       <div className="account-booking-actions">
-        <ButtonLink href={booking.primaryHref ?? "/account"} size="sm">
-          {booking.primaryAction}
-        </ButtonLink>
-        {booking.secondaryAction ? (
-          <ButtonLink href={booking.secondaryHref ?? "/account"} size="sm" variant="outline">
-            {booking.secondaryAction}
+        {canViewTicket ? (
+          <ButtonLink href={booking.primaryHref ?? "/account"} size="sm">
+            View ticket
           </ButtonLink>
-        ) : null}
+        ) : booking.status === "saved" ? (
+          <ButtonLink href={booking.primaryHref ?? "/account"} size="sm">
+            {booking.primaryAction}
+          </ButtonLink>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-outline btn-sm motion-control"
+            disabled
+            aria-disabled="true"
+          >
+            <span>Ticket unavailable</span>
+          </button>
+        )}
         {canRefreshPaymentStatus ? (
           <button
             type="button"
