@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import {
   IconSearch,
   IconDownload,
@@ -9,56 +10,44 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconCheck,
+  IconEye,
+  IconEdit,
+  IconRefresh,
+  IconArrowBackUp,
+  IconExternalLink,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { BookingDetailDrawer } from "@/components/admin/booking-detail-drawer";
+import {
+  AdminBookingStatus,
+  ApiBooking,
+  BookingRow,
+  displayBookingStatus,
+  downloadBookingTicket,
+  mapApiBookingRow,
+  refundBooking,
+  resendBookingReceipt,
+  updateBookingPaymentStatus,
+} from "@/lib/admin-bookings";
 import { cn } from "@/lib/cn";
 import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
-interface ApiBooking {
-  id: string | number;
-  reference?: string;
-  user?: { name: string; email: string };
-  name?: string;
-  email?: string;
-  event?: { title: string; imageUrl?: string | null; imageAlt?: string | null };
-  tickets?: ApiBookingTicket[] | number;
-  qty?: number;
-  total?: number;
-  status?: string;
-  paymentStatus?: string;
-  date?: string;
-}
-
-type ApiBookingTicket = {
-  quantity?: number | string | null;
-};
-
-type BookingRow = {
+type BookingMenuState = {
   reference: string;
-  member: {
-    name: string;
-    email: string;
-    avatar?: string;
-  };
-  event: {
-    title: string;
-    thumbnail?: string;
-    imageAlt: string;
-  };
-  tickets: number;
-  total: string;
-  status: "Paid" | "Pending" | "Cancelled" | "Refunded";
-  date: string;
+  top: number;
+  left: number;
 };
 
 export default function AdminBookingsPage() {
+  const router = useRouter();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const selectedStatus: string = "All";
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const [selectedBookingRef, setSelectedBookingRef] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
+  const [openMenu, setOpenMenu] = useState<BookingMenuState | null>(null);
+  const [rowActionLoading, setRowActionLoading] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -77,22 +66,9 @@ export default function AdminBookingsPage() {
         if (!response.ok) throw new Error("API failed");
 
         const payload = await response.json();
-        const apiRows = Array.isArray(payload.data) ? payload.data.map((item: ApiBooking) => ({
-          reference: item.reference || `REF-${item.id}`,
-          member: {
-            name: item.user?.name || item.name || "Unknown member",
-            email: item.user?.email || item.email || "unknown@email.com",
-          },
-          event: {
-            title: item.event?.title || "Puncak Travellers event",
-            thumbnail: item.event?.imageUrl || "",
-            imageAlt: item.event?.imageAlt || item.event?.title || "Puncak Travellers event",
-          },
-          tickets: getBookingTicketCount(item),
-          total: item.total ? `Rp ${(item.total / 1000).toFixed(0)}K` : "Rp 0",
-          status: displayBookingStatus(item.paymentStatus ?? item.status),
-          date: formatBookingDate(item.date),
-        })) : [];
+        const apiRows = Array.isArray(payload.data)
+          ? payload.data.map((item: ApiBooking) => mapApiBookingRow(item))
+          : [];
         setBookings(apiRows);
         setTotal(payload.meta?.total ?? apiRows.length);
       } catch (err) {
@@ -108,8 +84,27 @@ export default function AdminBookingsPage() {
     loadBookings();
   }, [page]);
 
-  // Sync statuses from drawer refund updates
-  function handleStatusChange(ref: string, newStatus: "Paid" | "Pending" | "Cancelled" | "Refunded") {
+  useEffect(() => {
+    function closeMenu() {
+      setOpenMenu(null);
+    }
+
+    function closeMenuWithKeyboard(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpenMenu(null);
+      }
+    }
+
+    document.addEventListener("mousedown", closeMenu);
+    document.addEventListener("keydown", closeMenuWithKeyboard);
+
+    return () => {
+      document.removeEventListener("mousedown", closeMenu);
+      document.removeEventListener("keydown", closeMenuWithKeyboard);
+    };
+  }, []);
+
+  function handleStatusChange(ref: string, newStatus: AdminBookingStatus) {
     setBookings((prev) =>
       prev.map((b) => (b.reference === ref ? { ...b, status: newStatus } : b))
     );
@@ -154,34 +149,59 @@ export default function AdminBookingsPage() {
   };
 
   function triggerCsvExport() {
-    setToastMessage("CSV exported successfully.");
+    showToast("CSV exported successfully.");
+  }
+
+  function showToast(message: string) {
+    setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
   }
 
-  async function updatePaymentStatus(reference: string, status: BookingRow["status"]) {
-    const paymentStatus = status.toLowerCase();
+  async function updatePaymentStatus(reference: string, status: AdminBookingStatus) {
+    try {
+      const payload = await updateBookingPaymentStatus(reference, status);
+      handleStatusChange(reference, displayBookingStatus(payload.paymentStatus ?? payload.status));
+      showToast("Payment status updated.");
+    } catch (statusError) {
+      showToast(statusError instanceof Error ? statusError.message : "Unable to update payment status.");
+    }
+  }
+
+  function toggleActionMenu(reference: string, event: React.MouseEvent<HTMLButtonElement>) {
+    event.stopPropagation();
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    setOpenMenu((current) =>
+      current?.reference === reference
+        ? null
+        : {
+            reference,
+            top: rect.bottom + 8,
+            left: Math.max(12, rect.right - 208),
+          },
+    );
+  }
+
+  async function runRowAction(reference: string, action: "resend" | "refund" | "ticket") {
+    setOpenMenu(null);
+    setRowActionLoading(`${reference}:${action}`);
 
     try {
-      const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}/payment-status`, {
-        body: JSON.stringify({ payment_status: paymentStatus }),
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-        method: "PATCH",
-      });
-      const payload = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(payload.message ?? "Unable to update payment status.");
+      if (action === "resend") {
+        await resendBookingReceipt(reference);
+        showToast("Confirmation email resent successfully.");
+      } else if (action === "refund") {
+        const payload = await refundBooking(reference);
+        handleStatusChange(reference, displayBookingStatus(payload.status));
+        showToast("Booking refunded successfully.");
+      } else {
+        await downloadBookingTicket(reference);
+        showToast("Ticket downloaded.");
       }
-
-      handleStatusChange(reference, status);
-      setToastMessage("Payment status updated.");
-    } catch (statusError) {
-      setToastMessage(statusError instanceof Error ? statusError.message : "Unable to update payment status.");
+    } catch (actionError) {
+      showToast(actionError instanceof Error ? actionError.message : "Unable to manage booking.");
     } finally {
-      setTimeout(() => setToastMessage(null), 3000);
+      setRowActionLoading(null);
     }
   }
 
@@ -382,7 +402,7 @@ export default function AdminBookingsPage() {
                     <select
                       value={b.status}
                       onClick={(event) => event.stopPropagation()}
-                      onChange={(event) => updatePaymentStatus(b.reference, event.target.value as BookingRow["status"])}
+                      onChange={(event) => updatePaymentStatus(b.reference, event.target.value as AdminBookingStatus)}
                       className={cn(
                         "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
                         b.status === "Paid"
@@ -404,7 +424,14 @@ export default function AdminBookingsPage() {
                     {b.date}
                   </td>
                   <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button className="p-1 rounded-lg text-[#647589] hover:bg-slate-100 hover:text-slate-800 transition">
+                    <button
+                      aria-expanded={openMenu?.reference === b.reference}
+                      aria-haspopup="menu"
+                      aria-label={`Open actions for booking ${b.reference}`}
+                      onMouseDown={(event) => event.stopPropagation()}
+                      onClick={(event) => toggleActionMenu(b.reference, event)}
+                      className="p-1 rounded-lg text-[#647589] hover:bg-slate-100 hover:text-slate-800 transition"
+                    >
                       <IconDotsVertical className="w-4.5 h-4.5" />
                     </button>
                   </td>
@@ -449,6 +476,20 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
+      {openMenu ? (
+        <BookingActionMenu
+          booking={bookings.find((booking) => booking.reference === openMenu.reference)}
+          loadingKey={rowActionLoading}
+          left={openMenu.left}
+          top={openMenu.top}
+          onNavigate={(href) => {
+            setOpenMenu(null);
+            router.push(href);
+          }}
+          onRunAction={runRowAction}
+        />
+      ) : null}
+
       {/* Booking Detail Drawer Overlay Component */}
       <BookingDetailDrawer
         bookingRef={selectedBookingRef}
@@ -463,56 +504,80 @@ export default function AdminBookingsPage() {
   );
 }
 
-function displayBookingStatus(status?: string): BookingRow["status"] {
-  if (status === "pending") {
-    return "Pending";
+type BookingActionMenuProps = {
+  booking?: BookingRow;
+  loadingKey: string | null;
+  left: number;
+  top: number;
+  onNavigate: (href: string) => void;
+  onRunAction: (reference: string, action: "resend" | "refund" | "ticket") => void;
+};
+
+function BookingActionMenu({
+  booking,
+  loadingKey,
+  left,
+  top,
+  onNavigate,
+  onRunAction,
+}: BookingActionMenuProps) {
+  if (!booking) {
+    return null;
   }
 
-  if (status === "cancelled") {
-    return "Cancelled";
-  }
+  const isClosed = booking.status === "Cancelled" || booking.status === "Refunded";
+  const actionDisabled = loadingKey !== null;
 
-  if (status === "refunded") {
-    return "Refunded";
-  }
-
-  return "Paid";
-}
-
-function getBookingTicketCount(item: ApiBooking): number {
-  if (typeof item.qty === "number" && item.qty > 0) {
-    return item.qty;
-  }
-
-  if (typeof item.tickets === "number" && item.tickets > 0) {
-    return item.tickets;
-  }
-
-  if (Array.isArray(item.tickets)) {
-    const ticketCount = item.tickets.reduce<number>((sum, ticket) => {
-      return sum + (Number(ticket.quantity) || 0);
-    }, 0);
-
-    return ticketCount || 1;
-  }
-
-  return 1;
-}
-
-function formatBookingDate(value?: string): string {
-  if (!value) {
-    return "02 Jun 2026";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return (
+    <div
+      role="menu"
+      onMouseDown={(event) => event.stopPropagation()}
+      className="fixed z-50 w-52 rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-xl shadow-slate-900/10"
+      style={{ left, top }}
+    >
+      <button
+        role="menuitem"
+        onClick={() => onNavigate(`/admin/bookings/${encodeURIComponent(booking.reference)}`)}
+        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5]"
+      >
+        <IconEye className="w-4 h-4 text-slate-500" />
+        <span>View details</span>
+      </button>
+      <button
+        role="menuitem"
+        onClick={() => onNavigate(`/admin/bookings/${encodeURIComponent(booking.reference)}/edit`)}
+        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5]"
+      >
+        <IconEdit className="w-4 h-4 text-slate-500" />
+        <span>Edit status</span>
+      </button>
+      <button
+        role="menuitem"
+        disabled={actionDisabled || isClosed}
+        onClick={() => onRunAction(booking.reference, "resend")}
+        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5] disabled:opacity-45 disabled:cursor-not-allowed"
+      >
+        <IconRefresh className="w-4 h-4 text-slate-500" />
+        <span>{loadingKey === `${booking.reference}:resend` ? "Resending..." : "Resend receipt"}</span>
+      </button>
+      <button
+        role="menuitem"
+        disabled={actionDisabled || isClosed}
+        onClick={() => onRunAction(booking.reference, "refund")}
+        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-45 disabled:cursor-not-allowed"
+      >
+        <IconArrowBackUp className="w-4 h-4" />
+        <span>{loadingKey === `${booking.reference}:refund` ? "Refunding..." : "Refund"}</span>
+      </button>
+      <button
+        role="menuitem"
+        disabled={actionDisabled || isClosed}
+        onClick={() => onRunAction(booking.reference, "ticket")}
+        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5] disabled:opacity-45 disabled:cursor-not-allowed"
+      >
+        <IconExternalLink className="w-4 h-4 text-slate-500" />
+        <span>{loadingKey === `${booking.reference}:ticket` ? "Downloading..." : "View ticket"}</span>
+      </button>
+    </div>
+  );
 }
