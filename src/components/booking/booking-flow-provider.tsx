@@ -37,6 +37,40 @@ import {
 
 type Quantities = Record<string, number>;
 
+type BookingConfirmation = {
+  reference: string;
+  snapToken: string;
+  paymentStatus?: string;
+  status?: string;
+};
+
+type BookingStatusPayload = {
+  status?: string;
+  paymentStatus?: string;
+};
+
+type SnapCallbackPayload = {
+  order_id?: string;
+  status_code?: string;
+  transaction_status?: string;
+};
+
+declare global {
+  interface Window {
+    snap?: {
+      pay: (
+        token: string,
+        callbacks: {
+          onSuccess?: (payload: SnapCallbackPayload) => void;
+          onPending?: (payload: SnapCallbackPayload) => void;
+          onError?: (payload: SnapCallbackPayload) => void;
+          onClose?: () => void;
+        },
+      ) => void;
+    };
+  }
+}
+
 type BookingContextValue = {
   event: EventDetail;
   quantities: Quantities;
@@ -50,13 +84,14 @@ type BookingContextValue = {
     lineTotal: number;
   }>;
   confirmationReference: string;
+  snapToken: string;
   termsAccepted: boolean;
   signedIn: boolean;
   userDisplayName: string;
   setTermsAccepted: (accepted: boolean) => void;
   setSignedIn: (signedIn: boolean) => void;
   changeQuantity: (ticketId: string, delta: number) => void;
-  confirmBooking: () => Promise<string>;
+  confirmBooking: () => Promise<BookingConfirmation>;
 };
 
 const BookingContext = createContext<BookingContextValue | null>(null);
@@ -70,6 +105,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
   const storageKey = `puncak.booking.${event.slug}`;
   const [quantities, setQuantities] = useState<Quantities>({});
   const [confirmationReference, setConfirmationReference] = useState("");
+  const [snapToken, setSnapToken] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -91,11 +127,13 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
           const parsed = JSON.parse(rawBooking) as {
             quantities?: Quantities;
             confirmationReference?: string;
+            snapToken?: string;
             idempotencyKey?: string;
             termsAccepted?: boolean;
           };
           setQuantities(parsed.quantities ?? {});
           setConfirmationReference(parsed.idempotencyKey ? parsed.confirmationReference ?? "" : "");
+          setSnapToken(parsed.idempotencyKey ? parsed.snapToken ?? "" : "");
           setIdempotencyKey(parsed.idempotencyKey ?? crypto.randomUUID());
           setTermsAccepted(Boolean(parsed.termsAccepted));
         } catch {
@@ -169,10 +207,11 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
         confirmationReference,
         idempotencyKey,
         quantities,
+        snapToken,
         termsAccepted,
       }),
     );
-  }, [confirmationReference, hydrated, idempotencyKey, quantities, storageKey, termsAccepted]);
+  }, [confirmationReference, hydrated, idempotencyKey, quantities, snapToken, storageKey, termsAccepted]);
 
   const selectedRows = useMemo(
     () =>
@@ -217,8 +256,11 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
   }, []);
 
   const confirmBooking = useCallback(async () => {
-    if (confirmationReference) {
-      return confirmationReference;
+    if (confirmationReference && snapToken) {
+      return {
+        reference: confirmationReference,
+        snapToken,
+      };
     }
 
     const auth = currentUser ?? readStoredAuth();
@@ -255,7 +297,12 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
     });
 
     const payload = (await response.json().catch(() => ({}))) as {
-      data?: { reference?: string };
+      data?: {
+        reference?: string;
+        snapToken?: string | null;
+        paymentStatus?: string;
+        status?: string;
+      };
       message?: string;
     };
 
@@ -272,14 +319,27 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       throw new Error("The booking response did not include a reference.");
     }
 
+    const nextSnapToken = payload.data?.snapToken;
+    if (!nextSnapToken) {
+      throw new Error("The booking response did not include a Midtrans payment token.");
+    }
+
     setConfirmationReference(nextReference);
-    return nextReference;
+    setSnapToken(nextSnapToken);
+
+    return {
+      reference: nextReference,
+      snapToken: nextSnapToken,
+      paymentStatus: payload.data?.paymentStatus,
+      status: payload.data?.status,
+    };
   }, [
     confirmationReference,
     currentUser,
     event.slug,
     idempotencyKey,
     selectedRows,
+    snapToken,
     termsAccepted,
   ]);
 
@@ -295,6 +355,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       setSignedIn: updateSignedIn,
       setTermsAccepted,
       signedIn,
+      snapToken,
       subtotal,
       termsAccepted,
       total,
@@ -309,6 +370,7 @@ export function BookingFlowProvider({ event, children }: BookingFlowProviderProp
       selectedCount,
       selectedRows,
       signedIn,
+      snapToken,
       subtotal,
       termsAccepted,
       total,
@@ -428,15 +490,31 @@ export function BookingConfirmStep() {
     setError("");
 
     try {
-      await confirmBooking();
-      router.push(`${event.bookingHref}/success`);
+      const booking = await confirmBooking();
+      await loadMidtransSnapScript();
+
+      window.snap?.pay(booking.snapToken, {
+        onSuccess: () => {
+          router.push(`${event.bookingHref}/success?payment=success&reference=${encodeURIComponent(booking.reference)}`);
+        },
+        onPending: () => {
+          router.push(`${event.bookingHref}/success?payment=pending&reference=${encodeURIComponent(booking.reference)}`);
+        },
+        onError: () => {
+          setSubmitting(false);
+          setError("Midtrans could not process this payment. Try again or choose another payment method.");
+        },
+        onClose: () => {
+          setSubmitting(false);
+          setError("Payment was not completed. Reopen checkout to finish the booking payment.");
+        },
+      });
     } catch (submitError) {
       setError(
         submitError instanceof Error
           ? submitError.message
           : "Unable to confirm this booking.",
       );
-    } finally {
       setSubmitting(false);
     }
   }
@@ -464,7 +542,7 @@ export function BookingConfirmStep() {
           <section className="confirm-panel js-card" aria-labelledby="payment-title">
             <h2 id="payment-title">Payment</h2>
             <p>
-              This event is a reservation checkout. Pay the booking fee on arrival, or settle online when payments go live.
+              Payment opens in Midtrans Snap after confirmation. Your ticket is issued after the payment notification is processed.
             </p>
           </section>
 
@@ -485,7 +563,7 @@ export function BookingConfirmStep() {
             icon={IconCheck}
             onClick={submit}
           >
-            {submitting ? "Confirming..." : "Confirm booking"}
+            {submitting ? "Opening payment..." : "Pay with Midtrans"}
           </ActionButton>
           <p className="checkout-note">Submitting once is safe - duplicate clicks will not double-book.</p>
           {error ? (
@@ -507,13 +585,59 @@ export function BookingSuccessStep() {
     selectedRows,
     userDisplayName,
   } = useBookingFlow();
+  const [remoteStatus, setRemoteStatus] = useState<BookingStatusPayload | null>(null);
   const ticketSummary = selectedRows.map((row) => row.name.split(" ")[0]).join(" + ");
+  const paymentState = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("payment");
+  const queryReference = typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("reference") ?? "";
+  const reference = confirmationReference || queryReference;
+  const authoritativePaymentStatus = remoteStatus?.paymentStatus;
+  const isPaid = authoritativePaymentStatus ? authoritativePaymentStatus === "paid" : paymentState === "success";
+  const isFailed = authoritativePaymentStatus ? ["failed", "refunded"].includes(authoritativePaymentStatus) : false;
+
+  useEffect(() => {
+    if (!reference) return;
+
+    let active = true;
+
+    async function loadBookingStatus() {
+      try {
+        const response = await fetch(`/api/puncak/bookings/${encodeURIComponent(reference)}`, {
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) return;
+
+        const payload = (await response.json()) as { data?: BookingStatusPayload };
+
+        if (active) {
+          setRemoteStatus(payload.data ?? null);
+        }
+      } catch {
+        if (active) {
+          setRemoteStatus(null);
+        }
+      }
+    }
+
+    void loadBookingStatus();
+
+    return () => {
+      active = false;
+    };
+  }, [reference]);
 
   return (
     <CheckoutFrame
-      eyebrow="Booking confirmed"
-      title={`You are in, ${userDisplayName}!`}
-      lead={`Your spot for ${event.title} is locked in. We emailed your tickets and added them to your account.`}
+      eyebrow={isPaid ? "Payment received" : isFailed ? "Payment failed" : "Payment pending"}
+      title={isPaid ? `Payment received, ${userDisplayName}` : isFailed ? "Payment was not completed" : "Payment is pending"}
+      lead={
+        isPaid
+          ? `Your booking for ${event.title} is confirmed and your account has the latest payment status.`
+          : isFailed
+            ? `Midtrans did not complete the payment for ${event.title}. Your reserved ticket stock has been released.`
+            : `Midtrans is waiting for payment completion for ${event.title}. We will confirm the booking after the notification arrives.`
+      }
       hideSummary
     >
       <RequireSelection requireReference>
@@ -546,6 +670,39 @@ export function BookingSuccessStep() {
       </RequireSelection>
     </CheckoutFrame>
   );
+}
+
+function loadMidtransSnapScript(): Promise<void> {
+  const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
+  const snapJsUrl = process.env.NEXT_PUBLIC_MIDTRANS_SNAP_JS_URL ?? "https://app.sandbox.midtrans.com/snap/snap.js";
+
+  if (window.snap) {
+    return Promise.resolve();
+  }
+
+  if (!clientKey) {
+    return Promise.reject(new Error("Midtrans client key is not configured."));
+  }
+
+  const existingScript = document.getElementById("midtrans-snap-js") as HTMLScriptElement | null;
+
+  if (existingScript) {
+    return new Promise((resolve, reject) => {
+      existingScript.addEventListener("load", () => resolve(), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("Unable to load Midtrans Snap.")), { once: true });
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = "midtrans-snap-js";
+    script.src = snapJsUrl;
+    script.async = true;
+    script.dataset.clientKey = clientKey;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Unable to load Midtrans Snap."));
+    document.body.appendChild(script);
+  });
 }
 
 type CheckoutFrameProps = {

@@ -39,6 +39,7 @@ async function forwardRequest(request: NextRequest, context: ProxyContext) {
   const cookieToken = await getAuthCookieToken();
   const authorization = request.headers.get("Authorization") ?? (cookieToken ? `Bearer ${cookieToken}` : null);
   const contentType = request.headers.get("Content-Type");
+  const idempotencyKey = request.headers.get("Idempotency-Key");
 
   if (authorization) {
     headers.set("Authorization", authorization);
@@ -46,6 +47,10 @@ async function forwardRequest(request: NextRequest, context: ProxyContext) {
 
   if (contentType) {
     headers.set("Content-Type", contentType);
+  }
+
+  if (idempotencyKey) {
+    headers.set("Idempotency-Key", idempotencyKey);
   }
 
   const response = await fetch(target, {
