@@ -177,7 +177,7 @@ export function AccountDashboard() {
 
         if (!response.ok) {
           const payload = (await response.json().catch(() => ({}))) as { message?: string };
-          throw new Error(payload.message ?? "Unable to refresh payment status.");
+          throw new Error(payload.message || "Unable to refresh payment status.");
         }
 
         await reloadBookings();
