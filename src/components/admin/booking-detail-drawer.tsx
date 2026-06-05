@@ -3,7 +3,6 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  IconArrowBackUp,
   IconCheck,
   IconExternalLink,
   IconRefresh,
@@ -11,12 +10,9 @@ import {
 } from "@tabler/icons-react";
 import { BookingDetailContent } from "@/components/admin/booking-detail-content";
 import {
-  AdminBookingStatus,
   BookingDetail,
-  displayBookingStatus,
   downloadBookingTicket,
   getAdminBookingDetail,
-  refundBooking,
   resendBookingReceipt,
 } from "@/lib/admin-bookings";
 import { cn } from "@/lib/cn";
@@ -25,14 +21,12 @@ type BookingDetailDrawerProps = {
   bookingRef: string | null;
   isOpen: boolean;
   onClose: () => void;
-  onStatusChange?: (reference: string, newStatus: AdminBookingStatus) => void;
 };
 
 export function BookingDetailDrawer({
   bookingRef,
   isOpen,
   onClose,
-  onStatusChange,
 }: BookingDetailDrawerProps) {
   const [details, setDetails] = useState<BookingDetail | null>(null);
   const [loading, setLoading] = useState(false);
@@ -111,25 +105,6 @@ export function BookingDetailDrawer({
       showToast("Confirmation email resent successfully.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unable to resend receipt.");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleRefund() {
-    if (!details) return;
-
-    setActionLoading("refund");
-
-    try {
-      const payload = await refundBooking(details.reference);
-      const nextStatus = displayBookingStatus(payload.status);
-
-      setDetails((prev) => (prev ? { ...prev, status: nextStatus } : prev));
-      onStatusChange?.(details.reference, nextStatus);
-      showToast("Booking refunded successfully.");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Unable to refund booking.");
     } finally {
       setActionLoading(null);
     }
@@ -228,19 +203,6 @@ export function BookingDetailDrawer({
               <IconRefresh className="w-3.5 h-3.5" />
             )}
             <span>Resend</span>
-          </button>
-
-          <button
-            onClick={handleRefund}
-            disabled={!details || actionLoading !== null || disabledForClosedBooking}
-            className="flex-1 bg-white border border-red-200 text-red-600 hover:bg-red-50/50 px-4 py-2.5 rounded-full text-xs font-bold transition flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {actionLoading === "refund" ? (
-              <div className="w-3.5 h-3.5 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <IconArrowBackUp className="w-3.5 h-3.5" />
-            )}
-            <span>Refund</span>
           </button>
 
           <button

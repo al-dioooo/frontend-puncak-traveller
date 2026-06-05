@@ -3,7 +3,6 @@ import { Header } from "@/components/landing/header";
 import {
   ActivitiesSection,
   BookingStepsSection,
-  CommunitiesSection,
   EventsSection,
   FinalCtaSection,
   GallerySection,
@@ -29,7 +28,6 @@ export default async function Home() {
         <EventsSection events={landing.events} />
         <ActivitiesSection activities={landing.activities} />
         <LiveEventSection liveEvent={landing.liveEvent} />
-        <CommunitiesSection communities={landing.communities} />
         <BookingStepsSection />
         <GallerySection images={landing.galleryImages} />
         <FinalCtaSection />

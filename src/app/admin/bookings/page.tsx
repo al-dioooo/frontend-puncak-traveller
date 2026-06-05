@@ -2,18 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   IconSearch,
-  IconDotsVertical,
   IconChevronLeft,
   IconChevronRight,
   IconCheck,
-  IconEye,
-  IconEdit,
   IconRefresh,
-  IconArrowBackUp,
-  IconExternalLink,
 } from "@tabler/icons-react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { BookingDetailDrawer } from "@/components/admin/booking-detail-drawer";
@@ -22,31 +16,21 @@ import {
   ApiBooking,
   BookingRow,
   displayBookingStatus,
-  downloadBookingTicket,
+  EditableAdminBookingStatus,
   mapApiBookingRow,
   refreshBookingPaymentStatus,
-  refundBooking,
-  resendBookingReceipt,
   updateBookingPaymentStatus,
 } from "@/lib/admin-bookings";
 import { cn } from "@/lib/cn";
 import { shouldBypassImageOptimization } from "@/lib/image-optimization";
 
-type BookingMenuState = {
-  reference: string;
-  top: number;
-  left: number;
-};
-
 export default function AdminBookingsPage() {
-  const router = useRouter();
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const selectedStatus: string = "All";
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const [selectedBookingRef, setSelectedBookingRef] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
-  const [openMenu, setOpenMenu] = useState<BookingMenuState | null>(null);
   const [rowActionLoading, setRowActionLoading] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -83,26 +67,6 @@ export default function AdminBookingsPage() {
 
     loadBookings();
   }, [page]);
-
-  useEffect(() => {
-    function closeMenu() {
-      setOpenMenu(null);
-    }
-
-    function closeMenuWithKeyboard(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpenMenu(null);
-      }
-    }
-
-    document.addEventListener("mousedown", closeMenu);
-    document.addEventListener("keydown", closeMenuWithKeyboard);
-
-    return () => {
-      document.removeEventListener("mousedown", closeMenu);
-      document.removeEventListener("keydown", closeMenuWithKeyboard);
-    };
-  }, []);
 
   function handleStatusChange(ref: string, newStatus: AdminBookingStatus) {
     setBookings((prev) =>
@@ -153,7 +117,7 @@ export default function AdminBookingsPage() {
     setTimeout(() => setToastMessage(null), 3000);
   }
 
-  async function updatePaymentStatus(reference: string, status: AdminBookingStatus) {
+  async function updatePaymentStatus(reference: string, status: EditableAdminBookingStatus) {
     try {
       const payload = await updateBookingPaymentStatus(reference, status);
       handleStatusChange(reference, displayBookingStatus(payload.paymentStatus ?? payload.status));
@@ -177,44 +141,6 @@ export default function AdminBookingsPage() {
     }
   }
 
-  function toggleActionMenu(reference: string, event: React.MouseEvent<HTMLButtonElement>) {
-    event.stopPropagation();
-    const rect = event.currentTarget.getBoundingClientRect();
-
-    setOpenMenu((current) =>
-      current?.reference === reference
-        ? null
-        : {
-            reference,
-            top: rect.bottom + 8,
-            left: Math.max(12, rect.right - 208),
-          },
-    );
-  }
-
-  async function runRowAction(reference: string, action: "resend" | "refund" | "ticket") {
-    setOpenMenu(null);
-    setRowActionLoading(`${reference}:${action}`);
-
-    try {
-      if (action === "resend") {
-        await resendBookingReceipt(reference);
-        showToast("Confirmation email resent successfully.");
-      } else if (action === "refund") {
-        const payload = await refundBooking(reference);
-        handleStatusChange(reference, displayBookingStatus(payload.status));
-        showToast("Booking refunded successfully.");
-      } else {
-        await downloadBookingTicket(reference);
-        showToast("Ticket downloaded.");
-      }
-    } catch (actionError) {
-      showToast(actionError instanceof Error ? actionError.message : "Unable to manage booking.");
-    } finally {
-      setRowActionLoading(null);
-    }
-  }
-
   return (
     <AdminLayout activeTab="Bookings" title="Bookings">
       {/* Toast Alert */}
@@ -232,7 +158,7 @@ export default function AdminBookingsPage() {
             Bookings
           </h1>
           <p className="text-[#647589] text-[14px] mt-1 font-medium">
-            {bookings.length} bookings · Rp 248M collected this month. Review, refund and manage every order.
+            {bookings.length} bookings · Rp 248M collected this month. Review and manage every order.
           </p>
         </div>
       </div>
@@ -254,7 +180,7 @@ export default function AdminBookingsPage() {
           </div>
 
           {/* Filter chips intentionally hidden per CMS revision request.
-          {["All", "Paid", "Pending", "Cancelled", "Refunded"].map((status) => (
+          {["All", "Paid", "Pending", "Cancelled"].map((status) => (
             <button
               key={status}
               onClick={() => setSelectedStatus(status)}
@@ -326,13 +252,12 @@ export default function AdminBookingsPage() {
                 <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-widest text-[#647589]">
                   Date
                 </th>
-                <th className="px-6 py-4 w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F1F5F9]">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-[#647589] text-[14px]">
+                  <td colSpan={8} className="px-6 py-12 text-center text-[#647589] text-[14px]">
                     Loading bookings...
                   </td>
                 </tr>
@@ -403,25 +328,28 @@ export default function AdminBookingsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()}>
-                      <select
-                        value={b.status}
-                        onChange={(event) => updatePaymentStatus(b.reference, event.target.value as AdminBookingStatus)}
-                        className={cn(
-                          "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
-                          b.status === "Paid"
-                            ? "bg-teal-50 text-teal-700"
-                            : b.status === "Pending"
-                            ? "bg-amber-50 text-amber-700"
-                            : b.status === "Cancelled"
-                            ? "bg-red-50 text-red-700"
-                            : "bg-slate-100 text-slate-700",
-                        )}
-                      >
-                        <option>Paid</option>
-                        <option>Pending</option>
-                        <option>Cancelled</option>
-                        <option>Refunded</option>
-                      </select>
+                      {b.status === "Refunded" ? (
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                          Refunded
+                        </span>
+                      ) : (
+                        <select
+                          value={b.status}
+                          onChange={(event) => updatePaymentStatus(b.reference, event.target.value as EditableAdminBookingStatus)}
+                          className={cn(
+                            "px-2.5 py-1 rounded-full text-[11px] font-bold border-0 outline-none",
+                            b.status === "Paid"
+                              ? "bg-teal-50 text-teal-700"
+                              : b.status === "Pending"
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-red-50 text-red-700",
+                          )}
+                        >
+                          <option>Paid</option>
+                          <option>Pending</option>
+                          <option>Cancelled</option>
+                        </select>
+                      )}
                       <button
                         type="button"
                         aria-label={`Refresh payment status for booking ${b.reference}`}
@@ -436,24 +364,12 @@ export default function AdminBookingsPage() {
                   <td className="px-6 py-4 text-[13.5px] text-[#647589] whitespace-nowrap">
                     {b.date}
                   </td>
-                  <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      aria-expanded={openMenu?.reference === b.reference}
-                      aria-haspopup="menu"
-                      aria-label={`Open actions for booking ${b.reference}`}
-                      onMouseDown={(event) => event.stopPropagation()}
-                      onClick={(event) => toggleActionMenu(b.reference, event)}
-                      className="p-1 rounded-lg text-[#647589] hover:bg-slate-100 hover:text-slate-800 transition"
-                    >
-                      <IconDotsVertical className="w-4.5 h-4.5" />
-                    </button>
-                  </td>
                 </tr>
               ))}
 
               {!loading && filteredBookings.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-[#647589] text-[14px]">
+                  <td colSpan={8} className="px-6 py-12 text-center text-[#647589] text-[14px]">
                     No bookings available.
                   </td>
                 </tr>
@@ -489,20 +405,6 @@ export default function AdminBookingsPage() {
         </div>
       </div>
 
-      {openMenu ? (
-        <BookingActionMenu
-          booking={bookings.find((booking) => booking.reference === openMenu.reference)}
-          loadingKey={rowActionLoading}
-          left={openMenu.left}
-          top={openMenu.top}
-          onNavigate={(href) => {
-            setOpenMenu(null);
-            router.push(href);
-          }}
-          onRunAction={runRowAction}
-        />
-      ) : null}
-
       {/* Booking Detail Drawer Overlay Component */}
       <BookingDetailDrawer
         bookingRef={selectedBookingRef}
@@ -511,86 +413,7 @@ export default function AdminBookingsPage() {
           setDrawerOpen(false);
           setSelectedBookingRef(null);
         }}
-        onStatusChange={handleStatusChange}
       />
     </AdminLayout>
-  );
-}
-
-type BookingActionMenuProps = {
-  booking?: BookingRow;
-  loadingKey: string | null;
-  left: number;
-  top: number;
-  onNavigate: (href: string) => void;
-  onRunAction: (reference: string, action: "resend" | "refund" | "ticket") => void;
-};
-
-function BookingActionMenu({
-  booking,
-  loadingKey,
-  left,
-  top,
-  onNavigate,
-  onRunAction,
-}: BookingActionMenuProps) {
-  if (!booking) {
-    return null;
-  }
-
-  const isClosed = booking.status === "Cancelled" || booking.status === "Refunded";
-  const actionDisabled = loadingKey !== null;
-
-  return (
-    <div
-      role="menu"
-      onMouseDown={(event) => event.stopPropagation()}
-      className="fixed z-50 w-52 rounded-xl border border-[#E2E8F0] bg-white p-1.5 shadow-xl shadow-slate-900/10"
-      style={{ left, top }}
-    >
-      <button
-        role="menuitem"
-        onClick={() => onNavigate(`/admin/bookings/${encodeURIComponent(booking.reference)}`)}
-        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5]"
-      >
-        <IconEye className="w-4 h-4 text-slate-500" />
-        <span>View details</span>
-      </button>
-      <button
-        role="menuitem"
-        onClick={() => onNavigate(`/admin/bookings/${encodeURIComponent(booking.reference)}/edit`)}
-        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5]"
-      >
-        <IconEdit className="w-4 h-4 text-slate-500" />
-        <span>Edit status</span>
-      </button>
-      <button
-        role="menuitem"
-        disabled={actionDisabled || isClosed}
-        onClick={() => onRunAction(booking.reference, "resend")}
-        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5] disabled:opacity-45 disabled:cursor-not-allowed"
-      >
-        <IconRefresh className="w-4 h-4 text-slate-500" />
-        <span>{loadingKey === `${booking.reference}:resend` ? "Resending..." : "Resend receipt"}</span>
-      </button>
-      <button
-        role="menuitem"
-        disabled={actionDisabled || isClosed}
-        onClick={() => onRunAction(booking.reference, "refund")}
-        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-45 disabled:cursor-not-allowed"
-      >
-        <IconArrowBackUp className="w-4 h-4" />
-        <span>{loadingKey === `${booking.reference}:refund` ? "Refunding..." : "Refund"}</span>
-      </button>
-      <button
-        role="menuitem"
-        disabled={actionDisabled || isClosed}
-        onClick={() => onRunAction(booking.reference, "ticket")}
-        className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] font-bold text-[#0F172A] hover:bg-[#F8F7F5] disabled:opacity-45 disabled:cursor-not-allowed"
-      >
-        <IconExternalLink className="w-4 h-4 text-slate-500" />
-        <span>{loadingKey === `${booking.reference}:ticket` ? "Downloading..." : "View ticket"}</span>
-      </button>
-    </div>
   );
 }

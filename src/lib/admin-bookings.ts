@@ -1,4 +1,5 @@
 export type AdminBookingStatus = "Paid" | "Pending" | "Cancelled" | "Refunded";
+export type EditableAdminBookingStatus = Exclude<AdminBookingStatus, "Refunded">;
 
 export type ApiBookingTicket = {
   name?: string;
@@ -179,18 +180,9 @@ export async function resendBookingReceipt(reference: string): Promise<BookingAc
   return payload.data;
 }
 
-export async function refundBooking(reference: string): Promise<BookingActionResponse> {
-  const payload = await adminBookingRequest<ApiEnvelope<BookingActionResponse>>(
-    `/api/puncak/bookings/${encodeURIComponent(reference)}/refund`,
-    { method: "POST" },
-  );
-
-  return payload.data;
-}
-
 export async function updateBookingPaymentStatus(
   reference: string,
-  status: AdminBookingStatus,
+  status: EditableAdminBookingStatus,
 ): Promise<BookingActionResponse> {
   const payload = await adminBookingRequest<ApiEnvelope<BookingActionResponse>>(
     `/api/puncak/bookings/${encodeURIComponent(reference)}/payment-status`,
@@ -252,17 +244,13 @@ export function displayBookingStatus(status?: string): AdminBookingStatus {
   return "Paid";
 }
 
-export function paymentStatusForDisplay(status: AdminBookingStatus): string {
+export function paymentStatusForDisplay(status: EditableAdminBookingStatus): string {
   if (status === "Pending") {
     return "pending";
   }
 
   if (status === "Cancelled") {
     return "failed";
-  }
-
-  if (status === "Refunded") {
-    return "refunded";
   }
 
   return "paid";

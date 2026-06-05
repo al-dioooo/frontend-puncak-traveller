@@ -13,6 +13,7 @@ import { AdminLayout } from "@/components/admin/admin-layout";
 import {
   AdminBookingStatus,
   BookingDetail,
+  EditableAdminBookingStatus,
   displayBookingStatus,
   formatRupiah,
   getAdminBookingDetail,
@@ -24,11 +25,10 @@ type BookingEditPageContext = {
   params: Promise<{ reference: string }>;
 };
 
-const statusOptions: Array<{ value: AdminBookingStatus; label: string; desc: string }> = [
+const statusOptions: Array<{ value: EditableAdminBookingStatus; label: string; desc: string }> = [
   { value: "Paid", label: "Paid", desc: "Payment is captured and booking is confirmed." },
   { value: "Pending", label: "Pending", desc: "Payment is not completed yet." },
   { value: "Cancelled", label: "Cancelled", desc: "Payment failed or booking is cancelled." },
-  { value: "Refunded", label: "Refunded", desc: "Payment was refunded and booking is closed." },
 ];
 
 export default function AdminBookingEditPage({ params }: BookingEditPageContext) {
@@ -49,6 +49,7 @@ export default function AdminBookingEditPage({ params }: BookingEditPageContext)
 
     return details.total ?? subtotal + bookingFee;
   }, [details]);
+  const canSaveStatus = !!details && status !== initialStatus && status !== "Refunded";
 
   useEffect(() => {
     document.title = `Edit booking ${reference}`;
@@ -94,7 +95,7 @@ export default function AdminBookingEditPage({ params }: BookingEditPageContext)
   }
 
   async function handleSave() {
-    if (!details || status === initialStatus) return;
+    if (!canSaveStatus) return;
 
     setSaving(true);
 
@@ -139,7 +140,7 @@ export default function AdminBookingEditPage({ params }: BookingEditPageContext)
         </div>
         <button
           onClick={handleSave}
-          disabled={saving || loading || !details || status === initialStatus}
+          disabled={saving || loading || !canSaveStatus}
           className="flex items-center justify-center gap-1.5 bg-[#F37820] text-white hover:bg-[#C24B00] px-5 py-2.5 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {saving ? <IconLoader className="w-4 h-4 animate-spin" /> : <IconCheck className="w-4 h-4" />}
@@ -165,6 +166,16 @@ export default function AdminBookingEditPage({ params }: BookingEditPageContext)
               </div>
 
               <div className="grid gap-3">
+                {initialStatus === "Refunded" ? (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-[#647589]">
+                      Current historical status
+                    </div>
+                    <div className="mt-1 text-[13px] font-bold text-[#0F172A]">
+                      Refunded
+                    </div>
+                  </div>
+                ) : null}
                 {statusOptions.map((option) => {
                   const selected = status === option.value;
 

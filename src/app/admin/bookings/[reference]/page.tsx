@@ -3,7 +3,6 @@
 import React, { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  IconArrowBackUp,
   IconArrowLeft,
   IconCheck,
   IconEdit,
@@ -15,10 +14,8 @@ import { AdminLayout } from "@/components/admin/admin-layout";
 import { BookingDetailContent } from "@/components/admin/booking-detail-content";
 import {
   BookingDetail,
-  displayBookingStatus,
   downloadBookingTicket,
   getAdminBookingDetail,
-  refundBooking,
   resendBookingReceipt,
 } from "@/lib/admin-bookings";
 import { cn } from "@/lib/cn";
@@ -85,21 +82,6 @@ export default function AdminBookingDetailPage({ params }: BookingDetailPageCont
       showToast("Confirmation email resent successfully.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unable to resend receipt.");
-    } finally {
-      setActionLoading(null);
-    }
-  }
-
-  async function handleRefund() {
-    if (!details) return;
-    setActionLoading("refund");
-
-    try {
-      const payload = await refundBooking(details.reference);
-      setDetails((current) => (current ? { ...current, status: displayBookingStatus(payload.status) } : current));
-      showToast("Booking refunded successfully.");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Unable to refund booking.");
     } finally {
       setActionLoading(null);
     }
@@ -181,14 +163,6 @@ export default function AdminBookingDetailPage({ params }: BookingDetailPageCont
             icon={<IconRefresh className="w-4 h-4" />}
           />
           <ActionButton
-            label="Refund"
-            loading={actionLoading === "refund"}
-            disabled={!details || actionLoading !== null || disabledForClosedBooking}
-            onClick={handleRefund}
-            icon={<IconArrowBackUp className="w-4 h-4" />}
-            danger
-          />
-          <ActionButton
             label="View ticket"
             loading={actionLoading === "ticket"}
             disabled={!details || actionLoading !== null || disabledForClosedBooking}
@@ -222,11 +196,10 @@ type ActionButtonProps = {
   loading: boolean;
   disabled: boolean;
   onClick: () => void;
-  danger?: boolean;
   primary?: boolean;
 };
 
-function ActionButton({ label, icon, loading, disabled, onClick, danger, primary }: ActionButtonProps) {
+function ActionButton({ label, icon, loading, disabled, onClick, primary }: ActionButtonProps) {
   return (
     <button
       onClick={onClick}
@@ -235,8 +208,6 @@ function ActionButton({ label, icon, loading, disabled, onClick, danger, primary
         "inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-[13px] font-bold shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed",
         primary
           ? "bg-[#F37820] text-white hover:bg-[#C24B00]"
-          : danger
-          ? "bg-white border border-red-200 text-red-600 hover:bg-red-50"
           : "bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-slate-50",
       )}
     >
