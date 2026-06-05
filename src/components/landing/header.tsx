@@ -34,9 +34,9 @@ export function Header() {
                 <ButtonLink href="/login" variant="ghost" size="sm">
                   Log in
                 </ButtonLink>
-                <ButtonLink href="/signup" variant="light" size="sm">
+                {/* <ButtonLink href="/signup" variant="light" size="sm">
                   Sign up
-                </ButtonLink>
+                </ButtonLink> */}
               </>
             }
           />
