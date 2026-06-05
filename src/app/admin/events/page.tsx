@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   IconSearch,
-  IconDownload,
   IconPlus,
   IconEdit,
   IconTrash,
@@ -168,11 +167,6 @@ export default function AdminEventsPage() {
     }
   }
 
-  function handleExport() {
-    setToastMessage("Event catalog exported.");
-    setTimeout(() => setToastMessage(null), 3000);
-  }
-
   return (
     <AdminLayout activeTab="Events" title="Event Management">
       {/* Toast alert */}
@@ -194,13 +188,6 @@ export default function AdminEventsPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-slate-50 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm transition motion-control"
-          >
-            <IconDownload className="w-4 h-4 text-slate-500" />
-            <span>Export</span>
-          </button>
           <Link
             href="/admin/events/new"
             className="flex items-center gap-2 bg-[#F37820] !text-white px-4 py-2 rounded-full text-[13px] font-bold shadow-sm shadow-orange-500/20 hover:bg-[#C24B00] transition motion-control"

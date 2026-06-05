@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   IconSearch,
-  IconDownload,
   IconDotsVertical,
   IconChevronLeft,
   IconChevronRight,
@@ -149,10 +148,6 @@ export default function AdminBookingsPage() {
     });
   };
 
-  function triggerCsvExport() {
-    showToast("CSV exported successfully.");
-  }
-
   function showToast(message: string) {
     setToastMessage(message);
     setTimeout(() => setToastMessage(null), 3000);
@@ -240,13 +235,6 @@ export default function AdminBookingsPage() {
             {bookings.length} bookings · Rp 248M collected this month. Review, refund and manage every order.
           </p>
         </div>
-        <button
-          onClick={triggerCsvExport}
-          className="flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#0F172A] hover:bg-slate-50 px-4 py-2 rounded-full text-[13px] font-bold shadow-sm transition motion-control"
-        >
-          <IconDownload className="w-4 h-4 text-slate-500" />
-          <span>Export CSV</span>
-        </button>
       </div>
 
       {/* Toolbar Filter Section */}
