@@ -17,6 +17,8 @@ export type AuthUser = {
   email: string;
   role?: string;
   status?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
 };
 
 export type LoginResult = {

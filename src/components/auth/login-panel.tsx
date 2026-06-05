@@ -65,6 +65,7 @@ export function LoginPanel({
         email,
         name: data.user?.name ?? "Puncak Traveller",
         role: data.user?.role,
+        avatarUrl: data.user?.avatarUrl ?? data.user?.avatar_url ?? null,
       });
       onAuthenticated?.();
       router.push(data.user?.role === "admin" ? "/admin" : getResolvedReturnTo(returnTo));

@@ -38,6 +38,7 @@ export function SignupPanel() {
         email: data.user?.email ?? email,
         name: data.user?.name ?? name,
         role: data.user?.role,
+        avatarUrl: data.user?.avatarUrl ?? data.user?.avatar_url ?? null,
       });
       router.push("/account");
     } catch {

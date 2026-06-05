@@ -14,12 +14,16 @@ type AccountProfile = {
   memberSince: string;
   crew?: string;
   role?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   stats: Array<{ value: string; label: string }>;
 };
 
 type ApiUser = {
   name: string;
   email: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   location?: string | null;
   memberSince?: string | null;
   crew?: string | null;
@@ -57,6 +61,7 @@ export function AccountDashboard() {
   const [refreshingReference, setRefreshingReference] = useState("");
   const [message, setMessage] = useState("");
   const [refreshMessage, setRefreshMessage] = useState("");
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -110,6 +115,7 @@ export function AccountDashboard() {
           email: profilePayload.data.email,
           name: profilePayload.data.name,
           role: profilePayload.data.role ?? undefined,
+          avatarUrl: profilePayload.data.avatarUrl ?? profilePayload.data.avatar_url ?? null,
         });
         setSignedOut(false);
         setBookings([...bookingPayload.data, ...savedPayload.data]);
@@ -192,6 +198,9 @@ export function AccountDashboard() {
   );
 
   const activeProfile = profile ?? fallbackProfile;
+  const avatarUrl = activeProfile.avatarUrl ?? activeProfile.avatar_url ?? null;
+  const showAvatar = Boolean(avatarUrl && failedAvatarUrl !== avatarUrl);
+  const initials = initialsFor(activeProfile.name);
   const initializing = !sessionReady;
   const heroLead = useMemo(
     () =>
@@ -231,7 +240,22 @@ export function AccountDashboard() {
         image="/pages/account-hero.jpg"
         imageAlt="Puncak Travellers community members on a forest trail"
         stats={activeProfile.stats}
-      />
+      >
+        <div className="account-hero-profile" aria-label={`${activeProfile.name} profile`}>
+          <span className="account-hero-avatar" aria-hidden>
+            {showAvatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl as string} alt="" onError={() => setFailedAvatarUrl(avatarUrl)} />
+            ) : (
+              <span>{initials}</span>
+            )}
+          </span>
+          <span className="account-hero-meta">
+            <strong>{activeProfile.name}</strong>
+            <span>{activeProfile.email ?? "Puncak Traveller member"}</span>
+          </span>
+        </div>
+      </PageHero>
       {loading || initializing ? (
         <section className="section" aria-live="polite">
           <div className="wrap">
@@ -284,10 +308,20 @@ function mapProfile(user: ApiUser): AccountProfile {
     memberSince: user.memberSince ?? "2026",
     crew: user.crew ?? "Puncak Travellers",
     role: user.role ?? undefined,
+    avatarUrl: user.avatarUrl ?? user.avatar_url ?? null,
     stats: [
       { value: String(user.stats?.eventsBooked ?? 0), label: "Events booked" },
       { value: String(user.stats?.completed ?? 0), label: "Completed" },
       { value: String(user.stats?.kilometersLogged ?? 0), label: "KM logged" },
     ],
   };
+}
+
+function initialsFor(value: string) {
+  return value
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "PT";
 }

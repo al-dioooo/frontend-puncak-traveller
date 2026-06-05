@@ -4,6 +4,8 @@ export type StoredAuth = {
   email?: string;
   name?: string;
   role?: string;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
   signedInAt?: string;
 };
 

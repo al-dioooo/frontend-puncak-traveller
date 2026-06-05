@@ -22,14 +22,22 @@ type ProfileMenuProps = {
 export function ProfileMenu({ compact = false, fallback = null, mobile = false }: ProfileMenuProps) {
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const [auth, setAuth] = useState<StoredAuth | null>(() => readStoredAuth());
+  const [auth, setAuth] = useState<StoredAuth | null>(null);
   const [open, setOpen] = useState(false);
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null);
+  const avatarUrl = auth?.avatarUrl ?? auth?.avatar_url ?? null;
+  const showAvatar = Boolean(avatarUrl && failedAvatarUrl !== avatarUrl);
   const initials = initialsFor(auth?.name ?? auth?.email ?? "PT");
   const isAdmin = auth?.role === "admin";
 
   useEffect(() => {
     let active = true;
     async function hydrateSession() {
+      const storedAuth = readStoredAuth();
+      if (active && storedAuth) {
+        setAuth(storedAuth);
+      }
+
       try {
         const response = await fetch("/api/puncak/me", {
           cache: "no-store",
@@ -45,6 +53,7 @@ export function ProfileMenu({ compact = false, fallback = null, mobile = false }
           email: payload.data?.email,
           name: payload.data?.name ?? "Puncak Traveller",
           role: payload.data?.role,
+          avatarUrl: payload.data?.avatarUrl ?? payload.data?.avatar_url ?? null,
         };
 
         if (active) {
@@ -104,7 +113,12 @@ export function ProfileMenu({ compact = false, fallback = null, mobile = false }
         onClick={() => setOpen((value) => !value)}
       >
         <span className="profile-avatar" aria-hidden>
-          {initials}
+          {showAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl as string} alt="" onError={() => setFailedAvatarUrl(avatarUrl)} />
+          ) : (
+            <span>{initials}</span>
+          )}
         </span>
         {compact ? null : <span className="profile-name">{auth.name ?? "Account"}</span>}
         <IconChevronDown aria-hidden size={16} />
